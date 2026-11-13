@@ -30,7 +30,7 @@ libharfbuzz.so* libfreetype.so* libfontconfig.so* libgdk_pixbuf-2.0.so* libglyci
 libpulse.so* libpulse-simple.so* libasound.so* libjack.so*
 "
 
-APPDIR=$(dirname "$OUTPUT")/TeleDrive.AppDir
+APPDIR=$(dirname "$OUTPUT")/KunjoDrive.AppDir
 rm -rf "$APPDIR" "$OUTPUT"
 mkdir -p "$(dirname "$APPDIR")"
 cp -a "$APP_IMAGE" "$APPDIR"
@@ -71,8 +71,8 @@ if [ -x "$CACHE_GEN" ]; then
 fi
 
 install -m 755 "$HERE/AppRun" "$APPDIR/AppRun"
-install -m 644 "$HERE/teledrive.desktop" "$APPDIR/teledrive.desktop"
-install -m 644 "$ICON" "$APPDIR/teledrive.png"
+install -m 644 "$HERE/iplus-drive.desktop" "$APPDIR/iplus-drive.desktop"
+install -m 644 "$ICON" "$APPDIR/kunjodrive.png"
 install -m 644 "$ICON" "$APPDIR/.DirIcon"
 
 ARCH=x86_64 "$APPIMAGETOOL" --no-appstream "$APPDIR" "$OUTPUT"

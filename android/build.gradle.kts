@@ -1,4 +1,6 @@
 import com.android.build.api.variant.FilterConfiguration
+import java.io.FileInputStream
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -7,22 +9,26 @@ plugins {
 }
 
 android {
-    namespace = "com.drdisagree.teledrive"
+    namespace = "com.novo.drive"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.drdisagree.teledrive"
+        applicationId = "com.novo.drive"
         minSdk = 26
         targetSdk = 37
         versionCode = libs.versions.appVersionCode.get().toInt()
         versionName = libs.versions.appVersion.get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64"))
+        }
     }
 
-    val splitAbis = providers.gradleProperty("splitAbis").orNull?.toBoolean() ?: true
+    val splitAbis = providers.gradleProperty("splitAbis").orNull?.toBoolean() ?: false
     splits {
         abi {
             isEnable = splitAbis
@@ -32,33 +38,55 @@ android {
         }
     }
 
-    val ciKeystore = System.getenv("KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
+    val officialReleaseKeystore = rootProject.file("certs/kunjo-release.jks")
+    val envProps = Properties().apply {
+        val f = rootProject.file(".env")
+        if (f.exists()) {
+            FileInputStream(f).use { load(it) }
+        }
+    }
+    val resolvedStorePassword = System.getenv("KEYSTORE_PASSWORD")
+        ?: envProps.getProperty("KEYSTORE_PASSWORD")
+        ?: (project.findProperty("KEYSTORE_PASSWORD") as? String)
+
+    val resolvedKeyPassword = System.getenv("KEY_PASSWORD")
+        ?: envProps.getProperty("KEY_PASSWORD")
+        ?: resolvedStorePassword
+
+    val resolvedKeyAlias = System.getenv("KEY_ALIAS")
+        ?: envProps.getProperty("KEY_ALIAS")
+        ?: "kunjo"
+
     signingConfigs {
         create("release") {
-            if (ciKeystore != null) {
-                storeFile = file(ciKeystore)
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS")
-                keyPassword = System.getenv("KEY_PASSWORD")
+            if (officialReleaseKeystore.exists()) {
+                storeFile = officialReleaseKeystore
+                storePassword = resolvedStorePassword ?: error("KEYSTORE_PASSWORD is not set in env or .env")
+                keyAlias = resolvedKeyAlias
+                keyPassword = resolvedKeyPassword ?: error("KEY_PASSWORD is not set in env or .env")
+                enableV1Signing = true
+                enableV2Signing = true
+            } else {
+                error("Missing release keystore at certs/kunjo-release.jks")
             }
         }
     }
     buildTypes {
         debug {
-            if (ciKeystore != null) {
-                signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (officialReleaseKeystore.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
             }
         }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            if (ciKeystore != null) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -87,7 +115,7 @@ androidComponents {
             val extension = output.outputFileName.get().substringAfterLast('.')
             output.outputFileName.set(
                 output.versionName.map { version ->
-                    "${rootProject.name}-$version-$abi-${variant.buildType}.$extension"
+                    "DewanGram-KunjoDrive-v$version-$abi-${variant.buildType}.$extension"
                 }
             )
         }
@@ -149,6 +177,12 @@ dependencies {
     implementation(libs.androidx.exifinterface)
     implementation(libs.zip4j)
     implementation(libs.zxing.core)
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
     implementation(libs.tdlib)
 
     testImplementation(libs.junit)

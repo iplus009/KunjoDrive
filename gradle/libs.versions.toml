@@ -1,8 +1,16 @@
 [versions]
+# ── Version naming policy (semver, app name prefix "v") ─────────────────────
+#   vMAJOR.MINOR.PATCH
+#   • bug fix only            → bump PATCH   e.g. v1.0.0 → v1.0.1
+#   • one/some features changed or customised → bump MINOR, PATCH=0  e.g. v1.1.0
+#   • many features added / big update        → bump MAJOR, rest = 0 e.g. v2.0.0
+# appVersionCode must NEVER go down (Android refuses downgrades), so it keeps
+# incrementing by 1 per release regardless of the versionName scheme.
+# APK is named automatically: DewanGram-KunjoDrive-v<appVersion>-<abi>-<buildType>.apk
 #noinspection UnusedVersionCatalogEntry
-appVersion = "1.5.0"
+appVersion = "1.1.1"
 #noinspection UnusedVersionCatalogEntry
-appVersionCode = "10"
+appVersionCode = "87"
 agp = "9.4.1"
 kotlin = "2.4.20"
 ksp = "2.3.11"
@@ -48,6 +56,11 @@ jna = "5.19.1"
 vlcj = "4.12.1"
 turbine = "1.2.1"
 coroutinesTest = "1.11.0"
+backdrop = "2.0.1"
+kyantShapes = "1.2.1"
+mlkitTextRecognition = "16.0.1"
+cameraX = "1.4.1"
+mlkitBarcode = "17.3.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -131,6 +144,14 @@ cmp-ui-backhandler = { group = "org.jetbrains.compose.ui", name = "ui-backhandle
 cmp-ui-test-junit4 = { group = "org.jetbrains.compose.ui", name = "ui-test-junit4", version.ref = "composeMultiplatform" }
 jna-platform = { group = "net.java.dev.jna", name = "jna-platform", version.ref = "jna" }
 vlcj = { group = "uk.co.caprica", name = "vlcj", version.ref = "vlcj" }
+kyant-backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backdrop" }
+kyant-shapes = { group = "io.github.kyant0", name = "shapes", version.ref = "kyantShapes" }
+mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
+mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcode" }
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "cameraX" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraX" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraX" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

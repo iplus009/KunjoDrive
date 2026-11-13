@@ -1,0 +1,111 @@
+package com.novo.drive.data.local.preferences
+
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+
+object PreferenceKeys {
+    val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
+    val STORAGE_CHAT_ID = longPreferencesKey("storage_chat_id")
+    val API_ID_ENCRYPTED = stringPreferencesKey("api_id_enc")
+    val API_HASH_ENCRYPTED = stringPreferencesKey("api_hash_enc")
+
+    val AUTO_BACKUP_ENABLED = booleanPreferencesKey("auto_backup_enabled")
+    val INSTANT_BACKUP_ENABLED = booleanPreferencesKey("instant_backup_enabled")
+    val BACKUP_FOLDERS = stringSetPreferencesKey("backup_folders")
+    val BACKUP_WIFI_ONLY = booleanPreferencesKey("backup_wifi_only")
+    val DOWNLOAD_DIRECTORY = stringPreferencesKey("download_directory")
+    val BACKUP_CHARGING_ONLY = booleanPreferencesKey("backup_charging_only")
+    val BACKUP_INTERVAL_HOURS = intPreferencesKey("backup_interval_hours")
+    val BACKUP_MAX_FILE_SIZE_MB = intPreferencesKey("backup_max_file_size_mb")
+    val BEDTIME_SYNC_ENABLED = booleanPreferencesKey("bedtime_sync_enabled")
+    val BEDTIME_START_HOUR = intPreferencesKey("bedtime_start_hour")
+    val BEDTIME_END_HOUR = intPreferencesKey("bedtime_end_hour")
+
+    val MAX_CACHE_SIZE_MB = intPreferencesKey("max_cache_size_mb")
+    val TRASH_AUTO_CLEAR_DAYS = intPreferencesKey("trash_auto_clear_days")
+
+    val BLOCK_SCREEN_CAPTURE = booleanPreferencesKey("block_screen_capture")
+    val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
+    val AUTO_LOCK_TIMEOUT_MINUTES = intPreferencesKey("auto_lock_timeout_minutes")
+    val ENCRYPT_FILES = booleanPreferencesKey("encrypt_files")
+    val DELETE_AFTER_UPLOAD = booleanPreferencesKey("delete_after_upload")
+    val ENCRYPT_THUMBNAILS = booleanPreferencesKey("encrypt_thumbnails")
+    val KEY_BACKUP_CREATED = booleanPreferencesKey("key_backup_created")
+    val FOLDER_OWNERSHIP_REPAIRED = booleanPreferencesKey("folder_ownership_repaired")
+
+    val VAULT_PIN_SALT = stringPreferencesKey("vault_pin_salt")
+    val VAULT_PIN_HASH = stringPreferencesKey("vault_pin_hash")
+    val DECOY_VAULT_PIN_HASH = stringPreferencesKey("decoy_vault_pin_hash")
+    val DECOY_VAULT_PIN_SALT = stringPreferencesKey("decoy_vault_pin_salt")
+    val VAULT_BIOMETRIC_ENABLED = booleanPreferencesKey("vault_biometric_enabled")
+    val VAULT_LOCKOUT_UNTIL_MS = longPreferencesKey("vault_lockout_until_ms")
+    val VAULT_FAILED_ATTEMPTS = intPreferencesKey("vault_failed_attempts")
+    val SECOND_VAULT_FILE_IDS = stringSetPreferencesKey("second_vault_file_ids")
+    val SECOND_VAULT_FOLDER_IDS = stringSetPreferencesKey("second_vault_folder_ids")
+    val MUSIC_PLAYLISTS_JSON = stringPreferencesKey("music_playlists_json")
+    val VIDEO_RESUME_POSITIONS_JSON = stringPreferencesKey("video_resume_positions_json")
+
+    val ACCOUNT_ROLE = stringPreferencesKey("account_role")
+    val FAMILY_SLOT_INDEX = intPreferencesKey("family_slot_index")
+    val FAMILY_MEMBER_NAME = stringPreferencesKey("family_member_name")
+    val FAMILY_QUOTA_BYTES = longPreferencesKey("family_quota_bytes")
+    val FAMILY_EXPIRES_AT_MS = longPreferencesKey("family_expires_at_ms")
+    val FAMILY_GRANT_SIGNATURE = stringPreferencesKey("family_grant_signature")
+    val FAMILY_SUB_KEY_BASE64 = stringPreferencesKey("family_sub_key_base64")
+
+    val KUNJO_USERNAME = stringPreferencesKey("kunjo_username")
+    val KUNJO_ACCOUNT_TYPE = stringPreferencesKey("kunjo_account_type")
+    val KUNJO_AUTH_HASH = stringPreferencesKey("kunjo_auth_hash")
+    val KUNJO_MAX_STREAM_SIZE_MB = intPreferencesKey("kunjo_max_stream_size_mb")
+    val KUNJO_CAN_UPLOAD = booleanPreferencesKey("kunjo_can_upload")
+
+    val AVATAR_TYPE = stringPreferencesKey("avatar_type")
+    val AVATAR_VALUE = stringPreferencesKey("avatar_value")
+    val PROFILE_PHOTO_PATH = stringPreferencesKey("profile_photo_path")
+
+    val THEME = stringPreferencesKey("theme")
+    val LAST_SELECTED_DARK_THEME = stringPreferencesKey("last_selected_dark_theme")
+    val LANGUAGE = stringPreferencesKey("language")
+    val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+    val VIEW_MODE = stringPreferencesKey("view_mode")
+    val GRID_SIZE = intPreferencesKey("grid_size")
+    val GALLERY_VIEW_MODE = stringPreferencesKey("gallery_view_mode")
+    val GALLERY_GRID_SIZE = intPreferencesKey("gallery_grid_size")
+    val ALBUM_GRID_SIZE = intPreferencesKey("album_grid_size")
+    val LAYOUT_DENSITY = stringPreferencesKey("layout_density")
+    val SHOW_HIDDEN_FILES = booleanPreferencesKey("show_hidden_files")
+    val SHOW_ARCHIVED_FILES = booleanPreferencesKey("show_archived_files")
+    val SHOW_RECENT_FILES = booleanPreferencesKey("show_recent_files")
+    val LINK_PREVIEWS = booleanPreferencesKey("link_previews")
+    val UPDATE_CHECK_ENABLED = booleanPreferencesKey("update_check_enabled")
+    val LAST_UPDATE_CHECK_AT = longPreferencesKey("last_update_check_at")
+    val NOTIFIED_UPDATE_VERSION = stringPreferencesKey("notified_update_version")
+    val SKIPPED_UPDATE_VERSION = stringPreferencesKey("skipped_update_version")
+    val PROXY_ENABLED = booleanPreferencesKey("proxy_enabled")
+    val ACTIVE_PROXY_ID = stringPreferencesKey("active_proxy_id")
+    val TEXT_PREVIEW_SCALE = floatPreferencesKey("text_preview_scale")
+
+    val SORT_FIELD = stringPreferencesKey("sort_field")
+    val SORT_DIRECTION = stringPreferencesKey("sort_direction")
+    val GALLERY_SORT_FIELD = stringPreferencesKey("gallery_sort_field")
+    val GALLERY_SORT_DIRECTION = stringPreferencesKey("gallery_sort_direction")
+
+    val BACKGROUND_PLAYBACK = booleanPreferencesKey("background_playback")
+    val STREAM_BEFORE_DOWNLOAD = booleanPreferencesKey("stream_before_download")
+    val PREFERRED_AUDIO_LANGUAGE = stringPreferencesKey("preferred_audio_language")
+    val PREFERRED_SUBTITLE_LANGUAGE = stringPreferencesKey("preferred_subtitle_language")
+    val BACKUP_NOTIFICATIONS = booleanPreferencesKey("backup_notifications")
+    val FAILURE_NOTIFICATIONS = booleanPreferencesKey("failure_notifications")
+
+    val TRANSFER_CONCURRENCY = intPreferencesKey("transfer_concurrency")
+    val TRANSFER_RETRY_COUNT = intPreferencesKey("transfer_retry_count")
+    val ALLOW_METERED_TRANSFERS = booleanPreferencesKey("allow_metered_transfers")
+    val SAFE_UPLOAD_SPEED_KBPS = intPreferencesKey("safe_upload_speed_kbps")
+    val OCR_INDEXING_ENABLED = booleanPreferencesKey("ocr_indexing_enabled")
+    val STREAM_BRIDGE_PIN = stringPreferencesKey("stream_bridge_pin")
+    val DEBUG_LOGGING = booleanPreferencesKey("debug_logging")
+}

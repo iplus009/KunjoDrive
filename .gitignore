@@ -9,3 +9,19 @@ build/
 .cxx
 local.properties
 .kotlin
+
+.vscode/
+desktop/bin/
+
+# Keystores & Production Certificates
+certs/
+*.jks
+*.keystore
+
+
+# Secrets
+.env
+
+# Local APKs & screen recordings (exceed GitHub 100MB limit)
+release_apks/
+screeen record/

@@ -7,3 +7,9 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library) apply false
     alias(libs.plugins.compose.multiplatform) apply false
 }
+
+allprojects {
+    tasks.withType<Test>().configureEach {
+        jvmArgs("-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=UTF-8")
+    }
+}

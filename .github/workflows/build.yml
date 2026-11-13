@@ -56,7 +56,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: TeleDrive-android
+          name: Novo Drive-android
           path: android/build/outputs/apk/debug/*-universal-debug.apk
           if-no-files-found: error
 
@@ -87,7 +87,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: TeleDrive-windows
+          name: Novo Drive-windows
           path: desktop/build/compose/binaries/main/msi/*.msi
           if-no-files-found: error
 
@@ -117,7 +117,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: TeleDrive-linux
+          name: Novo Drive-linux
           path: desktop/build/deb/*.deb
           if-no-files-found: error
 
@@ -158,14 +158,14 @@ jobs:
           cd "$RUNNER_TEMP"
           "$GITHUB_WORKSPACE"/desktop/build/appimage/*.AppImage --appimage-extract > /dev/null
           test -x squashfs-root/AppRun
-          test -x squashfs-root/bin/TeleDrive
-          test -f squashfs-root/lib/app/TeleDrive.cfg
+          test -x squashfs-root/bin/Novo Drive
+          test -f squashfs-root/lib/app/Novo Drive.cfg
           test -f squashfs-root/usr/lib/libvlc.so.5
           test -f squashfs-root/usr/lib/vlc/plugins/video_output/libvmem_plugin.so
 
       - uses: actions/upload-artifact@v7
         with:
-          name: TeleDrive-linux-appimage
+          name: Novo Drive-linux-appimage
           path: desktop/build/appimage/*.AppImage
           if-no-files-found: error
 
@@ -190,6 +190,6 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: TeleDrive-macos
+          name: Novo Drive-macos
           path: desktop/build/compose/binaries/main/dmg/*.dmg
           if-no-files-found: error

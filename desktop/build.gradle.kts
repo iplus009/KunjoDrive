@@ -20,10 +20,10 @@ val generateBuildInfo = tasks.register("generateBuildInfo") {
     inputs.property("version", version)
     outputs.dir(outDir)
     doLast {
-        val file = outDir.get().file("com/drdisagree/teledrive/desktop/BuildInfo.kt").asFile
+        val file = outDir.get().file("com/novo/drive/desktop/BuildInfo.kt").asFile
         file.parentFile.mkdirs()
         val content = listOf(
-            "package com.drdisagree.teledrive.desktop",
+            "package com.novo.drive.desktop",
             "",
             "object BuildInfo {",
             "    const val VERSION = \"$version\"",
@@ -39,7 +39,7 @@ kotlin.sourceSets.named("main") {
 }
 
 compose.resources {
-    packageOfResClass = "com.drdisagree.teledrive.desktop.resources"
+    packageOfResClass = "com.novo.drive.desktop.resources"
 }
 
 dependencies {
@@ -270,13 +270,13 @@ val ciBuild = providers.gradleProperty("ciBuild").isPresent
 
 compose.desktop {
     application {
-        mainClass = "com.drdisagree.teledrive.desktop.MainKt"
+        mainClass = "com.novo.drive.desktop.MainKt"
         providers.gradleProperty("desktopJavaHome").orNull?.let { javaHome = it }
 
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Dmg)
             appResourcesRootDir.set(layout.buildDirectory.dir("appResources"))
-            packageName = if (ciBuild) "TeleDrive CI" else "TeleDrive"
+            packageName = if (ciBuild) "KunjoDrive CI" else "KunjoDrive"
             packageVersion = libs.versions.appVersion.get()
                 .split(".")
                 .let { parts -> (parts + List(3) { "0" }).take(3) }
@@ -291,13 +291,13 @@ compose.desktop {
                 "jdk.httpserver",
                 "jdk.unsupported"
             )
-            vendor = "DrDisagree"
+            vendor = "KunjoDrive"
             licenseFile.set(rootProject.file("LICENSE"))
 
             windows {
-                iconFile.set(project.file("icons/TeleDrive.ico"))
+                iconFile.set(project.file("icons/NovoDrive.ico"))
                 perUserInstall = true
-                menuGroup = "TeleDrive"
+                menuGroup = "Kunjo Drive"
                 shortcut = true
                 dirChooser = true
                 upgradeUuid = if (ciBuild) {
@@ -308,17 +308,17 @@ compose.desktop {
             }
 
             linux {
-                iconFile.set(project.file("icons/TeleDrive.png"))
+                iconFile.set(project.file("icons/NovoDrive.png"))
                 shortcut = true
-                packageName = "teledrive"
+                packageName = "kunjodrive"
                 appCategory = "Network"
                 menuGroup = "Network"
                 debMaintainer = debMaintainerValue.get()
             }
 
             macOS {
-                iconFile.set(project.file("icons/TeleDrive.icns"))
-                bundleID = "com.drdisagree.teledrive"
+                iconFile.set(project.file("icons/NovoDrive.icns"))
+                bundleID = "com.novo.drive"
             }
         }
     }
@@ -347,13 +347,13 @@ val packageDebUser = tasks.register("packageDebUser") {
     group = "distribution"
     dependsOn("createDistributable")
     notCompatibleWithConfigurationCache("runs jpackage and dpkg-deb from a doLast closure")
-    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/TeleDrive")
+    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/KunjoDrive")
     val destDir = layout.buildDirectory.dir("deb")
     val workDir = layout.buildDirectory.dir("debwork")
     val javaHome = providers.gradleProperty("desktopJavaHome").orNull
     val jpackage = javaHome?.let { File(it, "bin/jpackage") }
         ?: File(System.getProperty("java.home"), "bin/jpackage")
-    val debFile = destDir.map { it.file("teledrive_${debVersion}_amd64.deb") }
+    val debFile = destDir.map { it.file("kunjodrive_${debVersion}_amd64.deb") }
     inputs.dir(appImage)
     outputs.file(debFile)
     doLast {
@@ -362,10 +362,10 @@ val packageDebUser = tasks.register("packageDebUser") {
                 jpackage.absolutePath,
                 "--type", "deb",
                 "--app-image", appImage.get().asFile.absolutePath,
-                "--name", "TeleDrive",
+                "--name", "KunjoDrive",
                 "--app-version", debVersion,
-                "--vendor", "DrDisagree",
-                "--linux-package-name", "teledrive",
+                "--vendor", "KunjoDrive",
+                "--linux-package-name", "kunjodrive",
                 "--linux-package-deps", DEB_DEPENDS,
                 "--linux-shortcut",
                 "--linux-app-category", "Network",
@@ -396,17 +396,17 @@ val packageDebUser = tasks.register("packageDebUser") {
 }
 
 val ROBUST_POSTINST = """#!/bin/sh
-# postinst script for teledrive
+# postinst script for kunjodrive
 set -e
 case "${'$'}1" in
     configure)
-        desktop=/opt/teledrive/lib/teledrive-TeleDrive.desktop
+        desktop=/opt/kunjodrive/lib/kunjodrive-KunjoDrive.desktop
         if [ ! -f "${'$'}desktop" ]; then exit 0; fi
         if xdg-desktop-menu install "${'$'}desktop" 2>/dev/null; then
             :
         else
             mkdir -p /usr/share/applications
-            cp "${'$'}desktop" /usr/share/applications/teledrive.desktop
+            cp "${'$'}desktop" /usr/share/applications/kunjodrive.desktop
         fi
         ;;
     abort-upgrade|abort-remove|abort-deconfigure)
@@ -420,12 +420,12 @@ exit 0
 """
 
 val ROBUST_POSTRM = """#!/bin/sh
-# postrm script for teledrive
+# postrm script for kunjodrive
 set -e
 case "${'$'}1" in
     remove|purge)
-        rm -f /usr/share/applications/teledrive.desktop
-        xdg-desktop-menu uninstall /opt/teledrive/lib/teledrive-TeleDrive.desktop 2>/dev/null || true
+        rm -f /usr/share/applications/kunjodrive.desktop
+        xdg-desktop-menu uninstall /opt/kunjodrive/lib/kunjodrive-KunjoDrive.desktop 2>/dev/null || true
         ;;
     upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
         ;;
@@ -444,11 +444,11 @@ val packageAppImage = tasks.register("packageAppImage") {
     description = "Builds a portable x86_64 AppImage with libVLC bundled, using linuxdeploy and appimagetool"
     group = "distribution"
     dependsOn("createDistributable")
-    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/TeleDrive").map { it.asFile }
+    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/KunjoDrive").map { it.asFile }
     val packaging = layout.projectDirectory.dir("packaging/linux")
     val script = packaging.file("build-appimage.sh").asFile
-    val icon = layout.projectDirectory.file("icons/TeleDrive.png").asFile
-    val output = layout.buildDirectory.file("appimage/TeleDrive-${debVersion}-x86_64.AppImage").map { it.asFile }
+    val icon = layout.projectDirectory.file("icons/NovoDrive.png").asFile
+    val output = layout.buildDirectory.file("appimage/KunjoDrive-${debVersion}-x86_64.AppImage").map { it.asFile }
     val tools = mapOf("APPIMAGETOOL" to appImageTool, "LINUXDEPLOY" to linuxDeployTool)
     inputs.dir(appImage)
     inputs.dir(packaging)

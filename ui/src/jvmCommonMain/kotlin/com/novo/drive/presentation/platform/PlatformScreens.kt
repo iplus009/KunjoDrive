@@ -1,0 +1,18 @@
+package com.novo.drive.presentation.platform
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+
+interface PlatformScreens {
+
+    @Composable
+    fun Preview(
+        onBack: () -> Unit,
+        onEditNote: (String, String) -> Unit,
+        onShareToDewanGram: ((String) -> Unit)? = null
+    )
+}
+
+val LocalPlatformScreens = staticCompositionLocalOf<PlatformScreens> {
+    error("PlatformScreens is not provided")
+}

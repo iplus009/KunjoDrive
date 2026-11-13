@@ -1,0 +1,10 @@
+Kunjo Drive
+Copyright 2026 Ismail & Contributors
+
+Licensed under the Apache License, Version 2.0 (the "License").
+You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Open-Source Acknowledgements:
+- Portions of the underlying multiplatform storage transport and Room schema foundations were originally derived from open-source Apache-2.0 works (including TeleDrive contributors) and substantially re-architected for Kunjo Drive v5.0.0.
+- Optical Liquid Glass shaders powered by Glass Kit / Backdrop (Apache-2.0).
+

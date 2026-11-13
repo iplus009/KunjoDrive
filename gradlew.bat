@@ -27,6 +27,7 @@
 if "%OS%"=="Windows_NT" setlocal
 
 set DIRNAME=%~dp0
+if not exist "%DIRNAME%gradle\wrapper\gradle-wrapper.jar" set DIRNAME=.\
 if "%DIRNAME%"=="" set DIRNAME=.
 @rem This is normally unused
 set APP_BASE_NAME=%~n0
@@ -34,6 +35,8 @@ set APP_HOME=%DIRNAME%
 
 @rem Resolve any "." and ".." in APP_HOME to make it shorter.
 for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
+echo %APP_HOME% | find "?" >nul
+if %ERRORLEVEL% equ 0 set APP_HOME=.
 
 @rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
 set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
@@ -70,11 +73,14 @@ goto fail
 :execute
 @rem Setup the command line
 
-set CLASSPATH=
-
+if exist "gradle\wrapper\gradle-wrapper.jar" (
+    set CLASSPATH=gradle\wrapper\gradle-wrapper.jar
+) else (
+    set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
+)
 
 @rem Execute Gradle
-"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" -jar "%APP_HOME%\gradle\wrapper\gradle-wrapper.jar" %*
+"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" -jar "%CLASSPATH%" %*
 
 :end
 @rem End local scope for the variables with windows NT shell

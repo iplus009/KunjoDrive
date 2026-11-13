@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Kunjo Drive
+Comment=Cloud storage backed by your Telegram account
+Exec=KunjoDrive
+Icon=kunjodrive
+Categories=Network;FileTransfer;
+Terminal=false

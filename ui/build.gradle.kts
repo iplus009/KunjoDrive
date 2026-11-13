@@ -13,7 +13,7 @@ kotlin {
     }
 
     android {
-        namespace = "com.drdisagree.teledrive.ui"
+        namespace = "com.novo.drive.ui"
         compileSdk = 37
         minSdk = 26
         experimentalProperties["android.experimental.kmp.enableAndroidResources"] = true
@@ -33,6 +33,13 @@ kotlin {
             dependencies {
                 implementation(libs.androidx.core.ktx)
                 implementation(libs.google.android.material)
+                implementation(libs.kyant.backdrop)
+                implementation(libs.kyant.shapes)
+                implementation(libs.androidx.camera.core)
+                implementation(libs.androidx.camera.camera2)
+                implementation(libs.androidx.camera.lifecycle)
+                implementation(libs.androidx.camera.view)
+                implementation(libs.mlkit.barcode.scanning)
             }
         }
         named("desktopMain") {
@@ -66,12 +73,13 @@ kotlin {
                 api(libs.coil.compose)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.zxing.core)
+
             }
         }
     }
 }
 
 compose.resources {
-    packageOfResClass = "com.drdisagree.teledrive.resources"
+    packageOfResClass = "com.novo.drive.resources"
     publicResClass = true
 }
