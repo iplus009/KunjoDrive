@@ -63,6 +63,7 @@ fun IplusProtectedZipSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val palette = LocalIplusPalette.current
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
 
     var zipName by remember { mutableStateOf("iPlus_Encrypted_${System.currentTimeMillis() % 10000}.zip") }
     var password by remember { mutableStateOf("") }
@@ -105,13 +106,13 @@ fun IplusProtectedZipSheet(
                 }
                 Column {
                     Text(
-                        text = "সুরক্ষিত জিপ তৈরি করুন · Protected ZIP",
+                        text = if (isBn) "সুরক্ষিত জিপ তৈরি করুন · Protected ZIP" else "Create Protected ZIP",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                     Text(
-                        text = "$targetCount টি ফাইল সুরক্ষিত এনক্রিপ্টেড আর্কাইভে প্যাক হবে",
+                        text = if (isBn) "$targetCount টি ফাইল সুরক্ষিত এনক্রিপ্টেড আর্কাইভে প্যাক হবে" else "$targetCount file(s) will be packed into an encrypted archive",
                         fontSize = 11.sp,
                         color = Color.White.copy(alpha = 0.65f)
                     )
@@ -122,7 +123,7 @@ fun IplusProtectedZipSheet(
             OutlinedTextField(
                 value = zipName,
                 onValueChange = { zipName = it },
-                label = { Text("আর্কাইভ ফাইলের নাম", fontSize = 12.sp) },
+                label = { Text(if (isBn) "আর্কাইভ ফাইলের নাম" else "Archive file name", fontSize = 12.sp) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -132,7 +133,7 @@ fun IplusProtectedZipSheet(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("সুরক্ষা পাসওয়ার্ড (AES-256 Password)", fontSize = 12.sp) },
+                    label = { Text(if (isBn) "সুরক্ষা পাসওয়ার্ড (AES-256 Password)" else "AES-256 Protection Password", fontSize = 12.sp) },
                     singleLine = true,
                     visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
@@ -156,13 +157,13 @@ fun IplusProtectedZipSheet(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "AES-256 মিলিটারি গ্রেড এনক্রিপশন",
+                        text = if (isBn) "AES-256 মিলিটারি গ্রেড এনক্রিপশন" else "AES-256 Military-Grade Encryption",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White
                     )
                     Text(
-                        text = "পাসওয়ার্ড ছাড়া এই জিপটি কেউ খুলতে বা প্রিভিউ করতে পারবে না",
+                        text = if (isBn) "পাসওয়ার্ড ছাড়া এই জিপটি কেউ খুলতে বা প্রিভিউ করতে পারবে না" else "Nobody can open or preview this ZIP without the password",
                         fontSize = 10.sp,
                         color = Color.White.copy(alpha = 0.60f)
                     )
@@ -181,15 +182,15 @@ fun IplusProtectedZipSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "কম্প্রেশন লেভেল:",
+                        text = if (isBn) "কম্প্রেশন লেভেল:" else "Compression level:",
                         fontSize = 12.sp,
                         color = Color.White.copy(alpha = 0.8f)
                     )
                     Text(
                         text = when (compressionLevel.toInt()) {
-                            0 -> "ফাস্ট স্টোর (0% No-Compress)"
-                            1 -> "স্ট্যান্ডার্ড নরমাল (ব্যালেন্সড)"
-                            else -> "ম্যাক্সিমাম আল্ট্রা (সর্বোচ্চ ছোট সাইজ)"
+                            0 -> if (isBn) "ফাস্ট স্টোর (0% No-Compress)" else "Fast Store (0% No-Compress)"
+                            1 -> if (isBn) "স্ট্যান্ডার্ড নরমাল (ব্যালেন্সড)" else "Standard Normal (Balanced)"
+                            else -> if (isBn) "ম্যাক্সিমাম আল্ট্রা (সর্বোচ্চ ছোট সাইজ)" else "Maximum Ultra (Smallest Size)"
                         },
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -247,7 +248,11 @@ fun IplusProtectedZipSheet(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = if (!canProceed) "পাসওয়ার্ড দিন" else "এনক্রিপ্ট করে জিপ তৈরি করুন",
+                        text = if (!canProceed) {
+                            if (isBn) "পাসওয়ার্ড দিন" else "Enter password"
+                        } else {
+                            if (isBn) "এনক্রিপ্ট করে জিপ তৈরি করুন" else "Encrypt & Create ZIP"
+                        },
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         color = if (canProceed) palette.accentPrimary else Color.White.copy(alpha = 0.4f)

@@ -78,6 +78,7 @@ fun SecureVaultPinDialog(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val deviceOwnerGate = LocalDeviceOwnerGate.current
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
 
     var mode by remember { mutableStateOf(VaultDialogMode.LOADING) }
     var lockoutSeconds by remember { mutableIntStateOf(0) }
@@ -132,15 +133,15 @@ fun SecureVaultPinDialog(
 
     val promptText = when (mode) {
         VaultDialogMode.LOADING -> "INITIALISING VAULT..."
-        VaultDialogMode.SETUP_ENTER_NEW -> "প্রথম ৪-ডিজিট পিন সেট করুন"
-        VaultDialogMode.SETUP_CONFIRM -> "একই ৪-ডিজিট পিন পুনরায় দিন"
-        VaultDialogMode.OPTIONAL_SECOND_PIN -> "২য় পিন দিতে চাইলে দিন, নতুবা নিচে 'স্কিপ' করুন"
-        VaultDialogMode.OPTIONAL_SECOND_CONFIRM -> "২য় পিনটি পুনরায় দিয়ে নিশ্চিত করুন"
+        VaultDialogMode.SETUP_ENTER_NEW -> if (isBn) "প্রথম ৪-ডিজিট পিন সেট করুন" else "Set your primary 4-digit PIN"
+        VaultDialogMode.SETUP_CONFIRM -> if (isBn) "একই ৪-ডিজিট পিন পুনরায় দিন" else "Re-enter the same 4-digit PIN"
+        VaultDialogMode.OPTIONAL_SECOND_PIN -> if (isBn) "২য় পিন দিতে চাইলে দিন, নতুবা নিচে 'স্কিপ' করুন" else "Set an optional 2nd PIN, or tap Skip below"
+        VaultDialogMode.OPTIONAL_SECOND_CONFIRM -> if (isBn) "২য় পিনটি পুনরায় দিয়ে নিশ্চিত করুন" else "Confirm your 2nd PIN"
         VaultDialogMode.NORMAL_UNLOCK -> "ENTER PIN TO UNLOCK"
-        VaultDialogMode.LOCKED_OUT -> "অতিরিক্ত ভুল পিন • ৩০ সেকেন্ড অপেক্ষা করুন"
-        VaultDialogMode.CHANGE_OLD_PIN -> "পিন পরিবর্তনের জন্য বর্তমান পিন দিন"
-        VaultDialogMode.CHANGE_NEW_PIN -> "নতুন ৪-ডিজিট পিন দিন"
-        VaultDialogMode.CHANGE_CONFIRM -> "নতুন পিনটি পুনরায় দিন"
+        VaultDialogMode.LOCKED_OUT -> if (isBn) "অতিরিক্ত ভুল পিন • ৩০ সেকেন্ড অপেক্ষা করুন" else "Too many wrong attempts • Wait 30 seconds"
+        VaultDialogMode.CHANGE_OLD_PIN -> if (isBn) "পিন পরিবর্তনের জন্য বর্তমান পিন দিন" else "Enter current PIN to change"
+        VaultDialogMode.CHANGE_NEW_PIN -> if (isBn) "নতুন ৪-ডিজিট পিন দিন" else "Enter new 4-digit PIN"
+        VaultDialogMode.CHANGE_CONFIRM -> if (isBn) "নতুন পিনটি পুনরায় দিন" else "Confirm new PIN"
     }
 
     val panelShape = CutCornerShape(topEnd = 18.dp, bottomStart = 18.dp)
@@ -464,7 +465,7 @@ fun SecureVaultPinDialog(
                                                                                 // Stealthily ask for optional 2nd PIN right after 1st PIN setup
                                                                                 mode = VaultDialogMode.OPTIONAL_SECOND_PIN
                                                                             } else {
-                                                                                errorMessage = "পিন দুটি মেলেনি! আবার চেষ্টা করুন।"
+                                                                                errorMessage = if (isBn) "পিন দুটি মেলেনি! আবার চেষ্টা করুন।" else "PINs do not match! Try again."
                                                                                 enteredPin = ""
                                                                                 tempPinBuffer = ""
                                                                                 mode = VaultDialogMode.SETUP_ENTER_NEW
@@ -479,17 +480,17 @@ fun SecureVaultPinDialog(
                                                                             if (newPin == tempPinBuffer) {
                                                                                 val ok = vaultSecurity.setupDecoyPin(newPin)
                                                                                 if (ok) {
-                                                                                    successMessage = "পিন সেটআপ সম্পন্ন হয়েছে!"
+                                                                                    successMessage = if (isBn) "পিন সেটআপ সম্পন্ন হয়েছে!" else "PIN setup complete!"
                                                                                     delay(450L)
                                                                                     onUnlocked()
                                                                                 } else {
-                                                                                    errorMessage = "২য় পিনটি ১ম পিনের চেয়ে আলাদা হতে হবে!"
+                                                                                    errorMessage = if (isBn) "২য় পিনটি ১ম পিনের চেয়ে আলাদা হতে হবে!" else "2nd PIN must differ from primary PIN!"
                                                                                     enteredPin = ""
                                                                                     tempPinBuffer = ""
                                                                                     mode = VaultDialogMode.OPTIONAL_SECOND_PIN
                                                                                 }
                                                                             } else {
-                                                                                errorMessage = "পিন দুটি মেলেনি!"
+                                                                                errorMessage = if (isBn) "পিন দুটি মেলেনি!" else "PINs do not match!"
                                                                                 enteredPin = ""
                                                                                 tempPinBuffer = ""
                                                                                 mode = VaultDialogMode.OPTIONAL_SECOND_PIN
@@ -502,9 +503,17 @@ fun SecureVaultPinDialog(
                                                                                 is PinVerificationResult.Incorrect -> {
                                                                                     enteredPin = ""
                                                                                     errorMessage = if (res.remainingAttempts > 0) {
-                                                                                        "ভুল পিন! অবশিষ্ট চেষ্টা: ${res.remainingAttempts} বার"
+                                                                                        if (isBn) {
+                                                                                            "ভুল পিন! অবশিষ্ট চেষ্টা: ${res.remainingAttempts} বার"
+                                                                                        } else {
+                                                                                            "Incorrect PIN! Attempts remaining: ${res.remainingAttempts}"
+                                                                                        }
                                                                                     } else {
-                                                                                        "ভুল পিন! ভল্ট সাময়িক লক করা হয়েছে।"
+                                                                                        if (isBn) {
+                                                                                            "ভুল পিন! ভল্ট সাময়িক লক করা হয়েছে।"
+                                                                                        } else {
+                                                                                            "Incorrect PIN! Vault temporarily locked."
+                                                                                        }
                                                                                     }
                                                                                 }
                                                                                 is PinVerificationResult.LockedOut -> {
@@ -522,7 +531,7 @@ fun SecureVaultPinDialog(
                                                                                 }
                                                                                 else -> {
                                                                                     enteredPin = ""
-                                                                                    errorMessage = "বর্তমান পিনটি সঠিক নয়!"
+                                                                                    errorMessage = if (isBn) "বর্তমান পিনটি সঠিক নয়!" else "Current PIN is incorrect!"
                                                                                 }
                                                                             }
                                                                         }
@@ -538,7 +547,7 @@ fun SecureVaultPinDialog(
                                                                                 tempPinBuffer = ""
                                                                                 mode = VaultDialogMode.OPTIONAL_SECOND_PIN
                                                                             } else {
-                                                                                errorMessage = "নতুন পিন দুটি মেলেনি!"
+                                                                                errorMessage = if (isBn) "নতুন পিন দুটি মেলেনি!" else "New PINs do not match!"
                                                                                 enteredPin = ""
                                                                                 tempPinBuffer = ""
                                                                                 mode = VaultDialogMode.CHANGE_NEW_PIN
@@ -586,7 +595,7 @@ fun SecureVaultPinDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "স্কিপ করুন (SKIP — ২য় পিন লাগবে না) →",
+                            text = if (isBn) "স্কিপ করুন (SKIP — ২য় পিন লাগবে না) →" else "SKIP (No 2nd PIN) →",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF00E5FF)
@@ -599,7 +608,7 @@ fun SecureVaultPinDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "পিন ভুলে গেছেন?",
+                            text = if (isBn) "পিন ভুলে গেছেন?" else "Forgot PIN?",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF93A6BC),
@@ -607,7 +616,7 @@ fun SecureVaultPinDialog(
                                 .clickable(role = Role.Button) {
                                     deviceOwnerGate.require(
                                         title = "Security Vault",
-                                        subtitle = "বায়োমেট্রিক বা স্ক্রিন লক দিয়ে ভল্ট রিসেট করুন",
+                                        subtitle = if (isBn) "বায়োমেট্রিক বা স্ক্রিন লক দিয়ে ভল্ট রিসেট করুন" else "Verify biometrics or screen lock to reset vault",
                                         onDenied = { errorMessage = it }
                                     ) {
                                         coroutineScope.launch {

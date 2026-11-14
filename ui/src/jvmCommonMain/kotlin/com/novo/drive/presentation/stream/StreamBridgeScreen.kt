@@ -77,10 +77,24 @@ class StreamBridgeViewModel(
         viewModelScope.launch {
             if (enable) {
                 val active = streamServer.start()
-                _messages.tryEmit(UiText.Plain("Wi-Fi Stream চালু হয়েছে: ${active.browserUrl}"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "Wi-Fi Stream started: ${active.browserUrl}",
+                            "Wi-Fi Stream চালু হয়েছে: ${active.browserUrl}",
+                        )
+                    )
+                )
             } else {
                 streamServer.stop()
-                _messages.tryEmit(UiText.Plain("Wi-Fi Stream বন্ধ করা হয়েছে"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "Wi-Fi Stream stopped",
+                            "Wi-Fi Stream বন্ধ করা হয়েছে",
+                        )
+                    )
+                )
             }
         }
     }
@@ -88,12 +102,26 @@ class StreamBridgeViewModel(
     fun regeneratePin() {
         viewModelScope.launch {
             val pin = streamServer.regeneratePin()
-            _messages.tryEmit(UiText.Plain("নতুন ৪-ডিজিট স্ট্রিম পিন: $pin"))
+            _messages.tryEmit(
+                UiText.Plain(
+                    com.novo.drive.core.common.bi(
+                        "New 4-digit stream PIN: $pin",
+                        "নতুন ৪-ডিজিট স্ট্রিম পিন: $pin",
+                    )
+                )
+            )
         }
     }
 
     fun notifyCopied(label: String) {
-        _messages.tryEmit(UiText.Plain("$label কপি করা হয়েছে!"))
+        _messages.tryEmit(
+            UiText.Plain(
+                com.novo.drive.core.common.bi(
+                    "$label copied!",
+                    "$label কপি করা হয়েছে!",
+                )
+            )
+        )
     }
 }
 
@@ -106,6 +134,7 @@ fun StreamBridgeScreen(
     val status by viewModel.status.collectAsStateWithLifecycle()
     val palette = LocalIplusPalette.current
     val isLight = palette.theme == AppTheme.LIGHT
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val primaryText = if (isLight) Color(0xFF0F172A) else Color.White
     val secondaryText = if (isLight) Color(0xFF475569) else Color.White.copy(alpha = 0.68f)
     val clipboard = LocalClipboardManager.current
@@ -174,16 +203,28 @@ fun StreamBridgeScreen(
                         )
                         Column {
                             Text(
-                                text = if (status.running) "লোকাল ওয়াই-ফাই স্ট্রিম চালু" else "স্ট্রিম ব্রিজ বন্ধ রয়েছে",
+                                text = if (status.running) {
+                                    if (isBn) "লোকাল ওয়াই-ফাই স্ট্রিম চালু" else "Local Wi-Fi Stream Active"
+                                } else {
+                                    if (isBn) "স্ট্রিম ব্রিজ বন্ধ রয়েছে" else "Stream Bridge Offline"
+                                },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
                                 color = primaryText
                             )
                             Text(
                                 text = if (status.running) {
-                                    "সক্রিয় কানেকশন: ${status.activeConnections} • HTTP Range ও WebDAV প্রস্তুত"
+                                    if (isBn) {
+                                        "সক্রিয় কানেকশন: ${status.activeConnections} • HTTP Range ও WebDAV প্রস্তুত"
+                                    } else {
+                                        "Active connections: ${status.activeConnections} • HTTP Range & WebDAV ready"
+                                    }
                                 } else {
-                                    "চালু করলে একই ওয়াই-ফাইতে থাকা Smart TV, VLC ও PC ব্রাউজারে ক্লাউড ভিডিও চলবে"
+                                    if (isBn) {
+                                        "চালু করলে একই ওয়াই-ফাইতে থাকা Smart TV, VLC ও PC ব্রাউজারে ক্লাউড ভিডিও চলবে"
+                                    } else {
+                                        "Enable to stream cloud videos to Smart TV, VLC, and PC browsers on the same Wi-Fi"
+                                    }
                                 },
                                 fontSize = 12.sp,
                                 color = secondaryText
@@ -224,14 +265,14 @@ fun StreamBridgeScreen(
                             )
                         }
                         Text(
-                            text = "৪-ডিজিট অ্যাক্সেস পিন: ${status.pin}",
+                            text = if (isBn) "৪-ডিজিট অ্যাক্সেস পিন: ${status.pin}" else "4-Digit Access PIN: ${status.pin}",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
                             color = palette.accentSecondary
                         )
                         GlassPillButton(
-                            text = "নতুন পিন তৈরি করুন",
+                            text = if (isBn) "নতুন পিন তৈরি করুন" else "Generate New PIN",
                             icon = Icons.Filled.Refresh,
                             onClick = viewModel::regeneratePin
                         )
@@ -241,7 +282,7 @@ fun StreamBridgeScreen(
                 StreamEndpointCard(
                     label = "Smart TV / Browser Stream URL",
                     url = status.browserUrl,
-                    hint = "টিভি বা পিসির যেকোনো ব্রাউজারে খুলুন",
+                    hint = if (isBn) "টিভি বা পিসির যেকোনো ব্রাউজারে খুলুন" else "Open in any TV or PC web browser",
                     primaryText = primaryText,
                     secondaryText = secondaryText,
                     onCopy = {
@@ -253,7 +294,7 @@ fun StreamBridgeScreen(
                 StreamEndpointCard(
                     label = "VLC / Kodi / PC WebDAV URL",
                     url = status.webDavUrl,
-                    hint = "Password হিসেবে ৪-ডিজিট পিন (${status.pin}) ব্যবহার করুন",
+                    hint = if (isBn) "Password হিসেবে ৪-ডিজিট পিন (${status.pin}) ব্যবহার করুন" else "Use the 4-digit PIN (${status.pin}) as the password",
                     primaryText = primaryText,
                     secondaryText = secondaryText,
                     onCopy = {

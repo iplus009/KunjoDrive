@@ -315,7 +315,7 @@ fun IplusPlayerControls(
                                     if (onScreenshot != null && !audioOnly) {
                                         ControlButton(
                                             icon = Icons.Filled.PhotoCamera,
-                                            description = "ক্যাপচার স্ক্রিনশট",
+                                            description = if (com.novo.drive.presentation.common.isBengaliUi()) "ক্যাপচার স্ক্রিনশট" else "Capture screenshot",
                                             onClick = {
                                                 onInteraction()
                                                 onScreenshot()

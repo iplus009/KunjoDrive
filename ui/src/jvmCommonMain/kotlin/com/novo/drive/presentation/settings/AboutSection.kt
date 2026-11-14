@@ -113,11 +113,12 @@ fun AboutSection(state: SettingsUiState, viewModel: SettingsViewModel) {
         }
     }
 
-    SettingsSectionTitle("কমিউনিটি ও অফিশিয়াল স্টোর")
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
+    SettingsSectionTitle(if (isBn) "কমিউনিটি ও অফিশিয়াল স্টোর" else "Community & Official Store")
     SettingsGroup {
         add {
             SettingsClickRow(
-                title = "টেলিগ্রাম চ্যানেল (Official Store)",
+                title = if (isBn) "টেলিগ্রাম চ্যানেল (Official Store)" else "Telegram Channel (Official Store)",
                 icon = Icons.AutoMirrored.Filled.Send,
                 subtitle = "https://t.me/ismailq01appsstore",
                 onClick = { urlOpener.open(AppLinks.TELEGRAM) }

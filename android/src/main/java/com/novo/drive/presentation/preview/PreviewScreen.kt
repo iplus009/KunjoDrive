@@ -388,7 +388,12 @@ fun PreviewScreen(
                                     leadingIcon = {
                                         Icon(Icons.Filled.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                     },
-                                    text = { Text("দেওয়ানগ্রামে পাঠান (Share to DewanGram)", fontWeight = FontWeight.Bold) },
+                                    text = {
+                                        Text(
+                                            if (com.novo.drive.presentation.common.isBengaliUi()) "দেওয়ানগ্রামে পাঠান" else "Share to DewanGram",
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    },
                                     onClick = {
                                         showOverflow = false
                                         onShareToDewanGram?.invoke(currentFile.localPath ?: currentFile.name)
@@ -414,7 +419,9 @@ fun PreviewScreen(
                                 }
                                 if (!currentFile.hasRemoteCopy) {
                                     DropdownMenuItem(
-                                        text = { Text("📥 সেভ টু ড্রাইভ (Save to My Drive)") },
+                                        text = {
+                                            Text(if (com.novo.drive.presentation.common.isBengaliUi()) "📥 সেভ টু ড্রাইভ" else "Save to My Drive")
+                                        },
                                         onClick = {
                                             showOverflow = false
                                             viewModel.upload(currentFile)
@@ -695,7 +702,7 @@ private fun PreviewPage(
 
         is PreviewContent.PolicyBlocked -> EmptyState(
             icon = Icons.Outlined.Description,
-            title = "স্ট্রিমিং সীমাবদ্ধ",
+            title = if (com.novo.drive.presentation.common.isBengaliUi()) "স্ট্রিমিং সীমাবদ্ধ" else "Streaming Restricted",
             description = content.message,
             actionLabel = if (file.hasLocalCopy) null else stringResource(Res.string.common_download),
             onAction = if (file.hasLocalCopy) null else onDownload

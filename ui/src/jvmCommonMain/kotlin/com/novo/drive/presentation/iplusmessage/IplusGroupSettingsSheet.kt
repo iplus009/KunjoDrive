@@ -93,6 +93,7 @@ fun IplusGroupSettingsSheet(
     val isOwner = currentUserId == group.ownerId
     val currentMember = members.firstOrNull { it.userId == currentUserId }
     val isAdmin = isOwner || currentMember?.role == "ADMIN"
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -112,7 +113,7 @@ fun IplusGroupSettingsSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "গ্রুপ সেটিংস (Group Settings)",
+                    text = if (isBn) "গ্রুপ সেটিংস (Group Settings)" else "Group Settings",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -135,7 +136,7 @@ fun IplusGroupSettingsSheet(
                             OutlinedTextField(
                                 value = titleText,
                                 onValueChange = { titleText = it },
-                                label = { Text("গ্রুপের নাম") },
+                                label = { Text(if (isBn) "গ্রুপের নাম" else "Group Name") },
                                 modifier = Modifier.weight(1f)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -143,7 +144,7 @@ fun IplusGroupSettingsSheet(
                                 onUpdateTitle(titleText)
                                 isEditingTitle = false
                             }) {
-                                Text("সেভ")
+                                Text(if (isBn) "সেভ" else "Save")
                             }
                         }
                     } else {
@@ -160,7 +161,7 @@ fun IplusGroupSettingsSheet(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "${members.size}/200 জন মেম্বার (সর্বোচ্চ ২০০ জন)",
+                                    text = if (isBn) "${members.size}/200 জন মেম্বার (সর্বোচ্চ ২০০ জন)" else "${members.size}/200 Members (Max 200)",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -179,7 +180,7 @@ fun IplusGroupSettingsSheet(
 
                     // Invite Link Section
                     Text(
-                        text = "ইনভাইট লিংক (Invite Link)",
+                        text = if (isBn) "ইনভাইট লিংক (Invite Link)" else "Invite Link",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -209,7 +210,7 @@ fun IplusGroupSettingsSheet(
 
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "গ্রুপ ইউজারনেম (Username)",
+                        text = if (isBn) "গ্রুপ ইউজারনেম (Username)" else "Group Username",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -227,7 +228,7 @@ fun IplusGroupSettingsSheet(
                                 onUpdateUsername(usernameText)
                                 isEditingUsername = false
                             }) {
-                                Text("সেভ")
+                                Text(if (isBn) "সেভ" else "Save")
                             }
                         }
                     } else {
@@ -237,7 +238,11 @@ fun IplusGroupSettingsSheet(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (group.groupUsername.isNullOrBlank()) "কোনো ইউজারনেম নেই" else "@${group.groupUsername}",
+                                text = if (group.groupUsername.isNullOrBlank()) {
+                                    if (isBn) "কোনো ইউজারনেম নেই" else "No username set"
+                                } else {
+                                    "@${group.groupUsername}"
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -265,8 +270,20 @@ fun IplusGroupSettingsSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("🔒 চ্যাট বন্ধ রাখুন (Read-Only Mode)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Text("অন থাকলে সাধারণ মেম্বাররা লিখতে পারবে না, শুধু অ্যাডমিনরা পারবে।", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
+                        Text(
+                            text = if (isBn) "🔒 চ্যাট বন্ধ রাখুন (Read-Only Mode)" else "🔒 Read-Only Mode",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = if (isBn) {
+                                "অন থাকলে সাধারণ মেম্বাররা লিখতে পারবে না, শুধু অ্যাডমিনরা পারবে।"
+                            } else {
+                                "When enabled, only admins can send messages in this group."
+                            },
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.outline
+                        )
                     }
                     Switch(
                         checked = group.isReadOnly,
@@ -286,13 +303,13 @@ fun IplusGroupSettingsSheet(
             ) {
                 Icon(Icons.Default.GroupAdd, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("নতুন সদস্য যুক্ত করুন (+ Add Member)")
+                Text(if (isBn) "নতুন সদস্য যুক্ত করুন (+ Add Member)" else "Add New Member")
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "সদস্য তালিকা (Members)",
+                text = if (isBn) "সদস্য তালিকা (Members)" else "Members",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold
             )
@@ -361,11 +378,25 @@ fun IplusGroupSettingsSheet(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 val isTargetAdmin = member.role == "ADMIN"
                                 TextButton(onClick = { onToggleAdmin(member.userId, !isTargetAdmin) }) {
-                                    Text(if (isTargetAdmin) "ডিমোট" else "অ্যাডমিন", fontSize = 11.sp)
+                                    Text(
+                                        text = if (isTargetAdmin) {
+                                            if (isBn) "ডিমোট" else "Demote"
+                                        } else {
+                                            if (isBn) "অ্যাডমিন" else "Make Admin"
+                                        },
+                                        fontSize = 11.sp
+                                    )
                                 }
                                 if (group.isReadOnly && !isTargetAdmin) {
                                     TextButton(onClick = { onToggleSendPermission(member.userId, !member.isAllowedSender) }) {
-                                        Text(if (member.isAllowedSender) "অনুমতি বাতিল" else "পারমিশন", fontSize = 10.sp)
+                                        Text(
+                                            text = if (member.isAllowedSender) {
+                                                if (isBn) "অনুমতি বাতিল" else "Revoke"
+                                            } else {
+                                                if (isBn) "পারমিশন" else "Allow"
+                                            },
+                                            fontSize = 10.sp
+                                        )
                                     }
                                 }
                                 IconButton(onClick = { onRemoveMember(member.userId) }) {
@@ -399,7 +430,7 @@ fun IplusGroupSettingsSheet(
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("গ্রুপ ডিলিট করুন (Delete Group)")
+                    Text(if (isBn) "গ্রুপ ডিলিট করুন (Delete Group)" else "Delete Group")
                 }
             }
 

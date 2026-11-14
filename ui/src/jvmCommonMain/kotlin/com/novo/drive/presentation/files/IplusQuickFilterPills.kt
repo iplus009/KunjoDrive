@@ -58,33 +58,34 @@ fun IplusQuickFilterPills(
             .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        val isBn = com.novo.drive.presentation.common.isBengaliUi()
         FilterPill(
             icon = Icons.Filled.Folder,
-            label = "সকল ফাইল",
+            label = if (isBn) "সকল ফাইল" else "All Files",
             isSelected = selectedFilter == IplusQuickFileFilter.ALL,
             onClick = { onFilterSelected(IplusQuickFileFilter.ALL) }
         )
         FilterPill(
             icon = Icons.Filled.PhotoLibrary,
-            label = "ছবি ও ভিডিও",
+            label = if (isBn) "ছবি ও ভিডিও" else "Photos & Videos",
             isSelected = selectedFilter == IplusQuickFileFilter.MEDIA,
             onClick = { onFilterSelected(IplusQuickFileFilter.MEDIA) }
         )
         FilterPill(
             icon = Icons.Filled.Description,
-            label = "ডকুমেন্টস",
+            label = if (isBn) "ডকুমেন্টস" else "Documents",
             isSelected = selectedFilter == IplusQuickFileFilter.DOCS,
             onClick = { onFilterSelected(IplusQuickFileFilter.DOCS) }
         )
         FilterPill(
             icon = Icons.Filled.Android,
-            label = "অ্যাপস (APKs)",
+            label = if (isBn) "অ্যাপস (APKs)" else "Apps (APKs)",
             isSelected = selectedFilter == IplusQuickFileFilter.APKS,
             onClick = { onFilterSelected(IplusQuickFileFilter.APKS) }
         )
         FilterPill(
             icon = Icons.Filled.FolderZip,
-            label = "আর্কাইভ (ZIP)",
+            label = if (isBn) "আর্কাইভ (ZIP)" else "Archives (ZIP)",
             isSelected = selectedFilter == IplusQuickFileFilter.ARCHIVES,
             onClick = { onFilterSelected(IplusQuickFileFilter.ARCHIVES) }
         )

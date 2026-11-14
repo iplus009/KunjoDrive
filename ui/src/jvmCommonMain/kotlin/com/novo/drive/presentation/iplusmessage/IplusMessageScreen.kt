@@ -91,6 +91,7 @@ fun IplusMessageScreen(
     onSearchUser: (String) -> Unit,
     onUnblockUser: (Long) -> Unit = {}
 ) {
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Direct Chats, 1: Groups
     var searchQuery by remember { mutableStateOf("") }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
@@ -151,14 +152,16 @@ fun IplusMessageScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "দেওয়ানগ্রাম (DewanGram)",
+                            text = if (isBn) "দেওয়ানগ্রাম (DewanGram)" else "DewanGram",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = if (isFamilyMember) "iplus • সাব-অ্যাকাউন্ট মোড (View-Only)"
-                            else "iplus ecosystem • private cloud messenger",
+                            text = if (isFamilyMember) {
+                                if (isBn) "iplus • সাব-অ্যাকাউন্ট মোড (View-Only)"
+                                else "iplus • Sub-Account Mode (View-Only)"
+                            } else "iplus ecosystem • private cloud messenger",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (isFamilyMember) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                         )
@@ -174,7 +177,10 @@ fun IplusMessageScreen(
                     }
 
                     IconButton(onClick = { showDewanSettingsSheet = true }) {
-                        Icon(Icons.Default.Settings, contentDescription = "দেওয়ানগ্রাম সেটিংস")
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = if (isBn) "দেওয়ানগ্রাম সেটিংস" else "DewanGram Settings"
+                        )
                     }
                 }
             }
@@ -198,7 +204,7 @@ fun IplusMessageScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "ফাইল শেয়ার করার জন্য প্রাপক নির্বাচন করুন:",
+                                text = if (isBn) "ফাইল শেয়ার করার জন্য প্রাপক নির্বাচন করুন:" else "Select a recipient to share this file:",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
@@ -231,8 +237,11 @@ fun IplusMessageScreen(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
-                            if (isFamilyMember) "ওনার (@owner) বা ইউজারনেম দিয়ে খুঁজুন..."
-                            else "নাম, সাব-অ্যাকাউন্ট বা @ইউজারনেম দিয়ে খুঁজুন..."
+                            if (isFamilyMember) {
+                                if (isBn) "ওনার (@owner) বা ইউজারনেম দিয়ে খুঁজুন..." else "Search by owner (@owner) or username..."
+                            } else {
+                                if (isBn) "নাম, সাব-অ্যাকাউন্ট বা @ইউজারনেম দিয়ে খুঁজুন..." else "Search by name, sub-account, or @username..."
+                            }
                         )
                     },
                     leadingIcon = {
@@ -256,7 +265,7 @@ fun IplusMessageScreen(
             // If Search Query is Active: Display Live Multi-Layer Search Results!
             if (searchQuery.isNotBlank()) {
                 Text(
-                    text = "🔍 অনুসন্ধানের ফলাফল (${searchResults.size}):",
+                    text = if (isBn) "🔍 অনুসন্ধানের ফলাফল (${searchResults.size}):" else "🔍 Search results (${searchResults.size}):",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -271,7 +280,7 @@ fun IplusMessageScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "'$searchQuery' নামে কোনো অ্যাকাউন্ট বা কন্টাক্ট পাওয়া যায়নি।",
+                            text = if (isBn) "'$searchQuery' নামে কোনো অ্যাকাউন্ট বা কন্টাক্ট পাওয়া যায়নি।" else "No account or contact found for '$searchQuery'.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.outline
                         )
@@ -356,7 +365,11 @@ fun IplusMessageScreen(
                                     }
 
                                     Text(
-                                        text = if (isFamilyMember) "ফাইল শেয়ার ▶" else "চ্যাট ▶",
+                                        text = if (isFamilyMember) {
+                                            if (isBn) "ফাইল শেয়ার ▶" else "Share File ▶"
+                                        } else {
+                                            if (isBn) "চ্যাট ▶" else "Chat ▶"
+                                        },
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isAdmin) Color(0xFFFFD700) else MaterialTheme.colorScheme.primary
@@ -380,7 +393,7 @@ fun IplusMessageScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("ব্যক্তিগত চ্যাট (Direct)", fontWeight = FontWeight.SemiBold)
+                                Text(if (isBn) "ব্যক্তিগত চ্যাট (Direct)" else "Direct Chats", fontWeight = FontWeight.SemiBold)
                             }
                         }
                     )
@@ -392,7 +405,11 @@ fun IplusMessageScreen(
                                 Icon(Icons.Default.Group, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    if (isFamilyMember) "গ্রুপ (নিষিদ্ধ)" else "গ্রুপ (২০০ জন)",
+                                    if (isFamilyMember) {
+                                        if (isBn) "গ্রুপ (নিষিদ্ধ)" else "Groups (Restricted)"
+                                    } else {
+                                        if (isBn) "গ্রুপ (২০০ জন)" else "Groups (Up to 200)"
+                                    },
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -416,14 +433,19 @@ fun IplusMessageScreen(
                                 Text("💬", fontSize = 48.sp)
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = "কোনো সক্রিয় চ্যাট নেই",
+                                    text = if (isBn) "কোনো সক্রিয় চ্যাট নেই" else "No active chats yet",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = if (isFamilyMember) "উপরে সার্চ বারে '@owner' লিখে মেইন অ্যাকাউন্ট খুঁজুন এবং ড্রাইভ ফাইল লিংক শেয়ার করুন।"
-                                    else "উপরে সার্চ বারে '@username' বা সাব-অ্যাকাউন্ট সার্চ করে মেসেজ বা ফাইল পাঠান। প্রথম মেসেজ পাঠালেই কন্টাক্ট সেভ হবে!",
+                                    text = if (isFamilyMember) {
+                                        if (isBn) "উপরে সার্চ বারে '@owner' লিখে মেইন অ্যাকাউন্ট খুঁজুন এবং ড্রাইভ ফাইল লিংক শেয়ার করুন।"
+                                        else "Search '@owner' above to find the Main Account and share Drive file links."
+                                    } else {
+                                        if (isBn) "উপরে সার্চ বারে '@username' বা সাব-অ্যাকাউন্ট সার্চ করে মেসেজ বা ফাইল পাঠান। প্রথম মেসেজ পাঠালেই কন্টাক্ট সেভ হবে!"
+                                        else "Search '@username' or a sub-account above to send messages or files. Contacts are saved after your first message."
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.outline,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -497,13 +519,17 @@ fun IplusMessageScreen(
                                 Text("🔒", fontSize = 48.sp)
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = "গ্রুপ ফিচার সাব-অ্যাকাউন্টে অনুমোদিত নয়",
+                                    text = if (isBn) "গ্রুপ ফিচার সাব-অ্যাকাউন্টে অনুমোদিত নয়" else "Groups are restricted for sub-accounts",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "সাব-অ্যাকাউন্ট শুধুমাত্র ব্যক্তিগতভাবে ভিউ-অনলি ক্লাউড ড্রাইভ ফাইল লিংক শেয়ার করতে পারে।",
+                                    text = if (isBn) {
+                                        "সাব-অ্যাকাউন্ট শুধুমাত্র ব্যক্তিগতভাবে ভিউ-অনলি ক্লাউড ড্রাইভ ফাইল লিংক শেয়ার করতে পারে।"
+                                    } else {
+                                        "Sub-accounts can only share view-only Cloud Drive file links privately."
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.outline,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -521,13 +547,17 @@ fun IplusMessageScreen(
                                 Text("👥", fontSize = 48.sp)
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = "কোনো গ্রুপ তৈরি করা হয়নি",
+                                    text = if (isBn) "কোনো গ্রুপ তৈরি করা হয়নি" else "No groups created yet",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "নিচের (+) বাটনে চাপ দিয়ে সর্বোচ্চ ২০০ জন মেম্বারের নতুন গ্রুপ তৈরি করুন।",
+                                    text = if (isBn) {
+                                        "নিচের (+) বাটনে চাপ দিয়ে সর্বোচ্চ ২০০ জন মেম্বারের নতুন গ্রুপ তৈরি করুন।"
+                                    } else {
+                                        "Tap (+) below to create a group for up to 200 members."
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.outline
                                 )
@@ -577,7 +607,7 @@ fun IplusMessageScreen(
                                                 fontWeight = FontWeight.Bold
                                             )
                                             Text(
-                                                text = "${group.memberCount}/200 জন মেম্বার",
+                                                text = if (isBn) "${group.memberCount}/200 জন মেম্বার" else "${group.memberCount}/200 members",
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.secondary
                                             )
@@ -596,11 +626,12 @@ fun IplusMessageScreen(
     if (showCreateGroupDialog) {
         AlertDialog(
             onDismissRequest = { showCreateGroupDialog = false },
-            title = { Text("নতুন গ্রুপ তৈরি করুন (New Group)") },
+            title = { Text(if (isBn) "নতুন গ্রুপ তৈরি করুন (New Group)" else "Create New Group") },
             text = {
                 Column {
                     Text(
-                        "টেলিগ্রাম বেসিক গ্রুপ আর্কিটেকচার: সর্বোচ্চ ২০০ জন মেম্বার যোগ করা যাবে।",
+                        if (isBn) "টেলিগ্রাম বেসিক গ্রুপ আর্কিটেকচার: সর্বোচ্চ ২০০ জন মেম্বার যোগ করা যাবে।"
+                        else "Telegram basic group architecture: supports up to 200 members.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -608,7 +639,7 @@ fun IplusMessageScreen(
                     OutlinedTextField(
                         value = newGroupTitle,
                         onValueChange = { newGroupTitle = it },
-                        label = { Text("গ্রুপের নাম *") },
+                        label = { Text(if (isBn) "গ্রুপের নাম *" else "Group Name *") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -616,7 +647,7 @@ fun IplusMessageScreen(
                     OutlinedTextField(
                         value = newGroupUsername,
                         onValueChange = { newGroupUsername = it },
-                        label = { Text("পাবলিক ইউজারনেম (ঐচ্ছিক)") },
+                        label = { Text(if (isBn) "পাবলিক ইউজারনেম (ঐচ্ছিক)" else "Public Username (Optional)") },
                         placeholder = { Text("@group_name") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
@@ -634,12 +665,12 @@ fun IplusMessageScreen(
                         }
                     }
                 ) {
-                    Text("তৈরি করুন")
+                    Text(if (isBn) "তৈরি করুন" else "Create")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCreateGroupDialog = false }) {
-                    Text("বাতিল")
+                    Text(if (isBn) "বাতিল" else "Cancel")
                 }
             }
         )
@@ -662,7 +693,7 @@ fun IplusMessageScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "⚙️ দেওয়ানগ্রাম সেটিংস",
+                        if (isBn) "⚙️ দেওয়ানগ্রাম সেটিংস" else "⚙️ DewanGram Settings",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -696,12 +727,12 @@ fun IplusMessageScreen(
                             val profileTitle = when {
                                 isFamilyMember -> familyMemberName.ifBlank { "Family Member" }
                                 kunjoUsername.isNotBlank() -> "@$kunjoUsername"
-                                else -> "কুঞ্জ ড্রাইভ ব্যবহারকারী"
+                                else -> if (isBn) "কুঞ্জ ড্রাইভ ব্যবহারকারী" else "Kunjo Drive User"
                             }
                             val profileSubtitle = when {
-                                isFamilyMember -> "সাব-অ্যাকাউন্ট মোড"
-                                kunjoUsername.isNotBlank() -> "মেইন অ্যাকাউন্ট · দেওয়ানগ্রাম"
-                                else -> "মেইন অ্যাকাউন্ট"
+                                isFamilyMember -> if (isBn) "সাব-অ্যাকাউন্ট মোড" else "Sub-Account Mode"
+                                kunjoUsername.isNotBlank() -> if (isBn) "মেইন অ্যাকাউন্ট · দেওয়ানগ্রাম" else "Main Account · DewanGram"
+                                else -> if (isBn) "মেইন অ্যাকাউন্ট" else "Main Account"
                             }
                             Text(
                                 text = profileTitle,
@@ -718,7 +749,11 @@ fun IplusMessageScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("🛡️ প্রাইভেসি ও নিরাপত্তা", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    if (isBn) "🛡️ প্রাইভেসি ও নিরাপত্তা" else "🛡️ Privacy & Security",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
@@ -729,7 +764,7 @@ fun IplusMessageScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("স্ক্রিনশট ব্লক (FLAG_SECURE)", fontSize = 13.sp)
+                        Text(if (isBn) "স্ক্রিনশট ব্লক (FLAG_SECURE)" else "Block Screenshots (FLAG_SECURE)", fontSize = 13.sp)
                     }
                     Switch(checked = flagSecureEnabled, onCheckedChange = onFlagSecureChanged)
                 }
@@ -742,7 +777,7 @@ fun IplusMessageScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("১-টাইম ভিউ (View Once) ডিফল্ট", fontSize = 13.sp)
+                        Text(if (isBn) "১-টাইম ভিউ (View Once) ডিফল্ট" else "View Once Default", fontSize = 13.sp)
                     }
                     Switch(checked = defaultViewOnce, onCheckedChange = { defaultViewOnce = it })
                 }
@@ -762,18 +797,39 @@ fun IplusMessageScreen(
                         Text("🚫", fontSize = 18.sp)
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("ব্লক করা ব্যবহারকারীদের তালিকা", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text("${blockedContacts.size} জন ব্লক করা আছেন", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
+                            Text(
+                                if (isBn) "ব্লক করা ব্যবহারকারীদের তালিকা" else "Blocked Users",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp
+                            )
+                            Text(
+                                if (isBn) "${blockedContacts.size} জন ব্লক করা আছেন" else "${blockedContacts.size} blocked",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.outline
+                            )
                         }
-                        Text("ম্যানেজ ▶", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (isBn) "ম্যানেজ ▶" else "Manage ▶",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("☁️ সিস্টেম ও ক্লাউড স্ট্যাটাস", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    if (isBn) "☁️ সিস্টেম ও ক্লাউড স্ট্যাটাস" else "☁️ System & Cloud Status",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "• কুঞ্জ ড্রাইভ ক্লাউড চ্যানেল: সংযুক্ত (Connected)\n• মেসেজ ট্রান্সমিশন: সক্রিয় (Telegram Cloud)\n• ফাইল শেয়ারিং: ০ মেগাবাইট ব্যান্ডউইথ (Zero Re-Upload)",
+                    text = if (isBn) {
+                        "• কুঞ্জ ড্রাইভ ক্লাউড চ্যানেল: সংযুক্ত (Connected)\n• মেসেজ ট্রান্সমিশন: সক্রিয় (Telegram Cloud)\n• ফাইল শেয়ারিং: ০ মেগাবাইট ব্যান্ডউইথ (Zero Re-Upload)"
+                    } else {
+                        "• Kunjo Drive Cloud Channel: Connected\n• Messaging Transport: Active (Telegram Cloud)\n• File Sharing: 0 MB Bandwidth (Zero Re-Upload)"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline
                 )
@@ -784,7 +840,7 @@ fun IplusMessageScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("সেটিংস বন্ধ করুন")
+                    Text(if (isBn) "সেটিংস বন্ধ করুন" else "Close Settings")
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -795,10 +851,18 @@ fun IplusMessageScreen(
     if (showBlockedUsersSheet) {
         AlertDialog(
             onDismissRequest = { showBlockedUsersSheet = false },
-            title = { Text("🚫 ব্লক করা ব্যবহারকারী (${blockedContacts.size})", fontWeight = FontWeight.Bold) },
+            title = {
+                Text(
+                    if (isBn) "🚫 ব্লক করা ব্যবহারকারী (${blockedContacts.size})" else "🚫 Blocked Users (${blockedContacts.size})",
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = {
                 if (blockedContacts.isEmpty()) {
-                    Text("বর্তমানে কোনো ব্যবহারকারী ব্লক তালিকায় নেই।", color = MaterialTheme.colorScheme.outline)
+                    Text(
+                        if (isBn) "বর্তমানে কোনো ব্যবহারকারী ব্লক তালিকায় নেই।" else "No users are currently blocked.",
+                        color = MaterialTheme.colorScheme.outline
+                    )
                 } else {
                     LazyColumn(modifier = Modifier.height(200.dp)) {
                         items(blockedContacts) { contact ->
@@ -818,7 +882,11 @@ fun IplusMessageScreen(
                                     }
                                 }
                                 TextButton(onClick = { onUnblockUser(contact.userId) }) {
-                                    Text("আনব্লক", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        if (isBn) "আনব্লক" else "Unblock",
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
                         }
@@ -827,7 +895,7 @@ fun IplusMessageScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showBlockedUsersSheet = false }) {
-                    Text("ঠিক আছে")
+                    Text(if (isBn) "ঠিক আছে" else "OK")
                 }
             }
         )
@@ -837,11 +905,12 @@ fun IplusMessageScreen(
     if (showJoinGroupDialog) {
         AlertDialog(
             onDismissRequest = { showJoinGroupDialog = false },
-            title = { Text("🔗 গ্রুপ ইনভাইট লিংকে যুক্ত হোন") },
+            title = { Text(if (isBn) "🔗 গ্রুপ ইনভাইট লিংকে যুক্ত হোন" else "🔗 Join via Group Invite") },
             text = {
                 Column {
                     Text(
-                        "টেলিগ্রাম গ্রুপ লিংক (t.me/+...), দেওয়ানগ্রাম লিংক (dewan://join/...) অথবা @username দিন।",
+                        if (isBn) "টেলিগ্রাম গ্রুপ লিংক (t.me/+...), দেওয়ানগ্রাম লিংক (dewan://join/...) অথবা @username দিন।"
+                        else "Enter a Telegram group link (t.me/+...), DewanGram link (dewan://join/...), or @username.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -849,8 +918,13 @@ fun IplusMessageScreen(
                     OutlinedTextField(
                         value = joinLinkInput,
                         onValueChange = { joinLinkInput = it },
-                        label = { Text("ইনভাইট লিংক বা @username") },
-                        placeholder = { Text("https://t.me/+... অথবা dewan://join/...") },
+                        label = { Text(if (isBn) "ইনভাইট লিংক বা @username" else "Invite Link or @username") },
+                        placeholder = {
+                            Text(
+                                if (isBn) "https://t.me/+... অথবা dewan://join/..."
+                                else "https://t.me/+... or dewan://join/..."
+                            )
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -866,12 +940,12 @@ fun IplusMessageScreen(
                         }
                     }
                 ) {
-                    Text("যুক্ত হোন")
+                    Text(if (isBn) "যুক্ত হোন" else "Join")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showJoinGroupDialog = false }) {
-                    Text("বাতিল")
+                    Text(if (isBn) "বাতিল" else "Cancel")
                 }
             }
         )

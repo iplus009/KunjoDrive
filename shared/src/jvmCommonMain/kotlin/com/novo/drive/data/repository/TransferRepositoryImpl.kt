@@ -226,7 +226,13 @@ class TransferRepositoryImpl(
             (prefs.kunjoAccountType.equals("SUB", ignoreCase = true) || !prefs.kunjoCanUpload)
         ) {
             return AppResult.Failure(
-                AppError.UnsupportedOperation("সাব-অ্যাকাউন্টে আপলোড অনুমতি নেই (Read-Only ও স্ট্রিমিং মোড সক্রিয়)")
+                AppError.UnsupportedOperation(
+                    com.novo.drive.core.common.bi(
+                        "Sub-accounts cannot upload (Read-Only & Streaming mode is active).",
+                        "সাব-অ্যাকাউন্টে আপলোড অনুমতি নেই (Read-Only ও স্ট্রিমিং মোড সক্রিয়)",
+                        prefs.language
+                    )
+                )
             )
         }
         if (entity.localPath == null) {

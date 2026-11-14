@@ -171,7 +171,11 @@ fun ProvidePlatformActions(content: @Composable () -> Unit) {
                     })
                 }
             }.onFailure { err ->
-                android.widget.Toast.makeText(context, "ফাইলটি খোলার জন্য কোনো অ্যাপ পাওয়া যায়নি", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(
+                    context,
+                    com.novo.drive.core.common.bi("No app found to open this file.", "ফাইলটি খোলার জন্য কোনো অ্যাপ পাওয়া যায়নি"),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }

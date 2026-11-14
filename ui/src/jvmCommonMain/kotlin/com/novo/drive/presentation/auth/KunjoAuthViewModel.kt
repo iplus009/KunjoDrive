@@ -102,11 +102,15 @@ class KunjoAuthViewModel(
         val cleanPhone = state.forgotPhoneNumber.trim()
 
         if (cleanUser.length < 3) {
-            _uiState.update { it.copy(forgotDialogError = "সঠিক ইউজারনেম দিন (সর্বনিম্ন ৩ অক্ষর)") }
+            _uiState.update {
+                it.copy(forgotDialogError = com.novo.drive.core.common.bi("Enter a valid username (at least 3 characters).", "সঠিক ইউজারনেম দিন (সর্বনিম্ন ৩ অক্ষর)"))
+            }
             return
         }
         if (cleanPhone.length < 9) {
-            _uiState.update { it.copy(forgotDialogError = "সঠিক টেলিগ্রাম ফোন নম্বর দিন (যেমন: +8801...)") }
+            _uiState.update {
+                it.copy(forgotDialogError = com.novo.drive.core.common.bi("Enter a valid Telegram phone number (e.g. +8801...).", "সঠিক টেলিগ্রাম ফোন নম্বর দিন (যেমন: +8801...)"))
+            }
             return
         }
 
@@ -117,7 +121,7 @@ class KunjoAuthViewModel(
                 _uiState.update {
                     it.copy(
                         isSendingForgotOtp = false,
-                        forgotDialogError = "অ্যাকাউন্ট খুঁজে পাওয়া যায়নি! ইউজারনেম সঠিক কিনা যাচাই করুন।"
+                        forgotDialogError = com.novo.drive.core.common.bi("Account not found. Check your username.", "অ্যাকাউন্ট খুঁজে পাওয়া যায়নি! ইউজারনেম সঠিক কিনা যাচাই করুন।")
                     )
                 }
                 return@launch
@@ -126,7 +130,10 @@ class KunjoAuthViewModel(
                 _uiState.update {
                     it.copy(
                         isSendingForgotOtp = false,
-                        forgotDialogError = "এই অ্যাকাউন্টে ভেরিফাইড টেলিগ্রাম আইডি লিংক করা নেই, তাই ওটিপি দিয়ে রিসেট করা সম্ভব নয়।"
+                        forgotDialogError = com.novo.drive.core.common.bi(
+                            "No verified Telegram ID is linked to this account, so OTP reset is unavailable.",
+                            "এই অ্যাকাউন্টে ভেরিফাইড টেলিগ্রাম আইডি লিংক করা নেই, তাই ওটিপি দিয়ে রিসেট করা সম্ভব নয়।"
+                        )
                     )
                 }
                 return@launch
@@ -146,7 +153,10 @@ class KunjoAuthViewModel(
                     _uiState.update {
                         it.copy(
                             isSendingForgotOtp = false,
-                            forgotDialogError = "টেলিগ্রামে ওটিপি পাঠানো যায়নি। ফোন নম্বর ঠিক আছে কি না চেক করুন।"
+                            forgotDialogError = com.novo.drive.core.common.bi(
+                                "Could not send Telegram OTP. Check your phone number.",
+                                "টেলিগ্রামে ওটিপি পাঠানো যায়নি। ফোন নম্বর ঠিক আছে কি না চেক করুন।"
+                            )
                         )
                     }
                 }
@@ -169,11 +179,15 @@ class KunjoAuthViewModel(
         val newPass = state.newPasswordInput
 
         if (cleanCode.length < 4) {
-            _uiState.update { it.copy(forgotDialogError = "টেলিগ্রামের সম্পূর্ণ ওটিপি কোডটি লিখুন") }
+            _uiState.update {
+                it.copy(forgotDialogError = com.novo.drive.core.common.bi("Enter the full Telegram OTP code.", "টেলিগ্রামের সম্পূর্ণ ওটিপি কোডটি লিখুন"))
+            }
             return
         }
         if (newPass.length < 6) {
-            _uiState.update { it.copy(forgotDialogError = "নতুন পাসওয়ার্ড সর্বনিম্ন ৬ অক্ষরের হতে হবে") }
+            _uiState.update {
+                it.copy(forgotDialogError = com.novo.drive.core.common.bi("New password must be at least 6 characters.", "নতুন পাসওয়ার্ড সর্বনিম্ন ৬ অক্ষরের হতে হবে"))
+            }
             return
         }
 
@@ -187,7 +201,10 @@ class KunjoAuthViewModel(
                         _uiState.update {
                             it.copy(
                                 isResettingPassword = false,
-                                forgotDialogError = "টেলিগ্রাম ২-ধাপ পাসওয়ার্ড (2FA) সক্রিয় থাকায় ভেরিফিকেশন সম্পন্ন হয়নি। অ্যাপের ভেতর থেকে পাসওয়ার্ড পরিবর্তন করুন।"
+                                forgotDialogError = com.novo.drive.core.common.bi(
+                                    "Telegram 2-Step Verification (2FA) is enabled; please change your password inside Settings.",
+                                    "টেলিগ্রাম ২-ধাপ পাসওয়ার্ড (2FA) সক্রিয় থাকায় ভেরিফিকেশন সম্পন্ন হয়নি। অ্যাপের ভেতর থেকে পাসওয়ার্ড পরিবর্তন করুন।"
+                                )
                             )
                         }
                         return@launch
@@ -205,7 +222,10 @@ class KunjoAuthViewModel(
                                 it.copy(
                                     isResettingPassword = false,
                                     showForgotDialog = false,
-                                    successMessage = "✅ পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে! নতুন পাসওয়ার্ড দিয়ে লগইন করুন।"
+                                    successMessage = com.novo.drive.core.common.bi(
+                                        "✅ Password updated! Log in with your new password.",
+                                        "✅ পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে! নতুন পাসওয়ার্ড দিয়ে লগইন করুন।"
+                                    )
                                 )
                             }
                             onSuccess()
@@ -225,7 +245,10 @@ class KunjoAuthViewModel(
                     _uiState.update {
                         it.copy(
                             isResettingPassword = false,
-                            forgotDialogError = "⚠️ ভুল ওটিপি কোড! টেলিগ্রাম অ্যাপের সঠিক কোডটি দিন।"
+                            forgotDialogError = com.novo.drive.core.common.bi(
+                                "⚠️ Invalid OTP code. Enter the code sent to your Telegram app.",
+                                "⚠️ ভুল ওটিপি কোড! টেলিগ্রাম অ্যাপের সঠিক কোডটি দিন।"
+                            )
                         )
                     }
                 }
@@ -236,7 +259,9 @@ class KunjoAuthViewModel(
     fun login(onSuccess: (String, String) -> Unit) {
         val state = _uiState.value
         if (state.username.isBlank() || state.password.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "ইউজারনেম এবং পাসওয়ার্ড লিখুন") }
+            _uiState.update {
+                it.copy(errorMessage = com.novo.drive.core.common.bi("Enter both username and password.", "ইউজারনেম এবং পাসওয়ার্ড লিখুন"))
+            }
             return
         }
 
@@ -245,7 +270,9 @@ class KunjoAuthViewModel(
             val result = authRepository.loginWithPassword(state.username, state.password)
             when (result) {
                 is KunjoAuthResult.Success -> {
-                    _uiState.update { it.copy(isLoading = false, successMessage = "লগইন সফল!") }
+                    _uiState.update {
+                        it.copy(isLoading = false, successMessage = com.novo.drive.core.common.bi("Login successful!", "লগইন সফল!"))
+                    }
                     onSuccess(result.username, result.accountType)
                 }
                 is KunjoAuthResult.Error -> {
@@ -258,7 +285,9 @@ class KunjoAuthViewModel(
     fun register(sessionData: String?, storageChannelId: Long?, onSuccess: (String, String) -> Unit) {
         val state = _uiState.value
         if (state.username.isBlank() || state.password.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "ইউজারনেম ও পাসওয়ার্ড পূরণ করুন") }
+            _uiState.update {
+                it.copy(errorMessage = com.novo.drive.core.common.bi("Fill in both username and password.", "ইউজারনেম ও পাসওয়ার্ড পূরণ করুন"))
+            }
             return
         }
 
@@ -275,7 +304,9 @@ class KunjoAuthViewModel(
             )
             when (result) {
                 is KunjoAuthResult.Success -> {
-                    _uiState.update { it.copy(isLoading = false, successMessage = "অ্যাকাউন্ট তৈরি সম্পন্ন!") }
+                    _uiState.update {
+                        it.copy(isLoading = false, successMessage = com.novo.drive.core.common.bi("Account created!", "অ্যাকাউন্ট তৈরি সম্পন্ন!"))
+                    }
                     onSuccess(result.username, result.accountType)
                 }
                 is KunjoAuthResult.Error -> {

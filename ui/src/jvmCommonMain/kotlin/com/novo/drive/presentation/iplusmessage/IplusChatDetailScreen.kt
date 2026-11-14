@@ -81,13 +81,15 @@ import java.util.Locale
 
 private const val MAX_SUBACCOUNT_FILE_BYTES: Long = 2L * 1024L * 1024L * 1024L // 2 GB hard gate
 
-enum class ChatAttachmentCategory(val title: String) {
-    ALL("সব"),
-    VIDEO("🎬 ভিডিও"),
-    IMAGE("🖼️ ছবি"),
-    AUDIO("🎵 অডিও"),
-    DOCUMENTS("📄 ডক"),
-    APPS("📦 অ্যাপস")
+enum class ChatAttachmentCategory(val title: String, val bnTitle: String) {
+    ALL("All", "সব"),
+    VIDEO("🎬 Video", "🎬 ভিডিও"),
+    IMAGE("🖼️ Photo", "🖼️ ছবি"),
+    AUDIO("🎵 Audio", "🎵 অডিও"),
+    DOCUMENTS("📄 Docs", "📄 ডক"),
+    APPS("📦 Apps", "📦 অ্যাপস");
+
+    fun label(isBn: Boolean): String = if (isBn) bnTitle else title
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,6 +114,7 @@ fun IplusChatDetailScreen(
     onOpenPdf: (String, String) -> Unit,
     onSaveToMyDrive: (String) -> Unit
 ) {
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     var inputText by remember { mutableStateOf("") }
     var showAttachmentDialog by remember { mutableStateOf(false) }
     var showAttachmentSheet by remember { mutableStateOf(false) }
@@ -156,9 +159,13 @@ fun IplusChatDetailScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = if (isGroup) "গ্রুপ চ্যাট (সর্বোচ্চ ২০০ জন)"
-                                else if (isFamilyMember) "ভিউ-অনলি ফাইল ব্রিজ"
-                                else "অনলাইনে আছেন",
+                                text = if (isGroup) {
+                                    if (isBn) "গ্রুপ চ্যাট (সর্বোচ্চ ২০০ জন)" else "Group Chat (Up to 200)"
+                                } else if (isFamilyMember) {
+                                    if (isBn) "ভিউ-অনলি ফাইল ব্রিজ" else "View-Only File Bridge"
+                                } else {
+                                    if (isBn) "অনলাইনে আছেন" else "Online"
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -202,7 +209,12 @@ fun IplusChatDetailScreen(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("📎 যুক্ত ফাইল: ${selectedCloudFileName ?: "কুঞ্জ ফাইল"}", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                        Text(
+                            if (isBn) "📎 যুক্ত ফাইল: ${selectedCloudFileName ?: "কুঞ্জ ফাইল"}"
+                            else "📎 Attached: ${selectedCloudFileName ?: "Kunjo File"}",
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.weight(1f)
+                        )
                         IconButton(onClick = {
                             selectedCloudFileLink = null
                             selectedCloudFileName = null
@@ -231,7 +243,11 @@ fun IplusChatDetailScreen(
                             val fileId = link.removePrefix("kunjo://file/")
                             val targetFile = recentDriveFiles.firstOrNull { it.id == fileId || link.contains(it.id) || link.contains(it.name) }
                             if (isFamilyMember && (targetFile?.sizeBytes ?: 0L) > MAX_SUBACCOUNT_FILE_BYTES) {
-                                policyBlockAlert = "⛔ সাব-অ্যাকাউন্ট ২ GB-এর বড় ফাইল প্লে বা ওপেন করতে পারে না (সাইজ: ${Formatters.bytes(targetFile?.sizeBytes ?: 0L)})।"
+                                policyBlockAlert = if (isBn) {
+                                    "⛔ সাব-অ্যাকাউন্ট ২ GB-এর বড় ফাইল প্লে বা ওপেন করতে পারে না (সাইজ: ${Formatters.bytes(targetFile?.sizeBytes ?: 0L)})।"
+                                } else {
+                                    "⛔ Sub-accounts cannot play or open files larger than 2 GB (size: ${Formatters.bytes(targetFile?.sizeBytes ?: 0L)})."
+                                }
                             } else {
                                 onPlayVideo(fileId, msg.text ?: targetFile?.name ?: "Video")
                             }
@@ -240,7 +256,11 @@ fun IplusChatDetailScreen(
                             val fileId = link.removePrefix("kunjo://file/")
                             val targetFile = recentDriveFiles.firstOrNull { it.id == fileId || link.contains(it.id) || link.contains(it.name) }
                             if (isFamilyMember && (targetFile?.sizeBytes ?: 0L) > MAX_SUBACCOUNT_FILE_BYTES) {
-                                policyBlockAlert = "⛔ সাব-অ্যাকাউন্ট ২ GB-এর বড় অডিও ওপেন করতে পারে না (সাইজ: ${Formatters.bytes(targetFile?.sizeBytes ?: 0L)})।"
+                                policyBlockAlert = if (isBn) {
+                                    "⛔ সাব-অ্যাকাউন্ট ২ GB-এর বড় অডিও ওপেন করতে পারে না (সাইজ: ${Formatters.bytes(targetFile?.sizeBytes ?: 0L)})।"
+                                } else {
+                                    "⛔ Sub-accounts cannot open audio files larger than 2 GB (size: ${Formatters.bytes(targetFile?.sizeBytes ?: 0L)})."
+                                }
                             } else {
                                 onPlayAudio(fileId, msg.text ?: targetFile?.name ?: "Audio")
                             }
@@ -249,7 +269,11 @@ fun IplusChatDetailScreen(
                             val fileId = link.removePrefix("kunjo://file/")
                             val targetFile = recentDriveFiles.firstOrNull { it.id == fileId || link.contains(it.id) || link.contains(it.name) }
                             if (isFamilyMember && (targetFile?.sizeBytes ?: 0L) > MAX_SUBACCOUNT_FILE_BYTES) {
-                                policyBlockAlert = "⛔ সাব-অ্যাকাউন্ট ২ GB-এর বড় ফাইল ওপেন করতে পারে না (সাইজ: ${Formatters.bytes(targetFile?.sizeBytes ?: 0L)})।"
+                                policyBlockAlert = if (isBn) {
+                                    "⛔ সাব-অ্যাকাউন্ট ২ GB-এর বড় ফাইল ওপেন করতে পারে না (সাইজ: ${Formatters.bytes(targetFile?.sizeBytes ?: 0L)})।"
+                                } else {
+                                    "⛔ Sub-accounts cannot open files larger than 2 GB (size: ${Formatters.bytes(targetFile?.sizeBytes ?: 0L)})."
+                                }
                             } else {
                                 onOpenPdf(fileId, msg.text ?: targetFile?.name ?: "Document")
                             }
@@ -258,7 +282,11 @@ fun IplusChatDetailScreen(
                             val fileId = link.removePrefix("kunjo://file/")
                             val targetFile = recentDriveFiles.firstOrNull { it.id == fileId || link.contains(it.id) || link.contains(it.name) }
                             if (isFamilyMember && (targetFile?.sizeBytes ?: 0L) > MAX_SUBACCOUNT_FILE_BYTES) {
-                                policyBlockAlert = "⛔ সাব-অ্যাকাউন্টে ২ GB-এর চেয়ে বড় ফাইল যুক্ত করা সম্পূর্ণ নিষিদ্ধ।"
+                                policyBlockAlert = if (isBn) {
+                                    "⛔ সাব-অ্যাকাউন্টে ২ GB-এর চেয়ে বড় ফাইল যুক্ত করা সম্পূর্ণ নিষিদ্ধ।"
+                                } else {
+                                    "⛔ Sub-accounts are not allowed to save files larger than 2 GB."
+                                }
                             } else {
                                 onSaveToMyDrive(link)
                             }
@@ -288,7 +316,11 @@ fun IplusChatDetailScreen(
                             Text("🔒", fontSize = 18.sp)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "এই গ্রুপে চ্যাট বন্ধ আছে। শুধুমাত্র অ্যাডমিনরা মেসেজ দিতে পারবেন।",
+                                text = if (isBn) {
+                                    "এই গ্রুপে চ্যাট বন্ধ আছে। শুধুমাত্র অ্যাডমিনরা মেসেজ দিতে পারবেন।"
+                                } else {
+                                    "Chat is restricted in this group. Only admins can send messages."
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -317,7 +349,11 @@ fun IplusChatDetailScreen(
                                 shape = RoundedCornerShape(16.dp)
                             ) {
                                 Text(
-                                    text = "🔒 সাব-অ্যাকাউন্ট মোড: চ্যাট নিষিদ্ধ। শুধুমাত্র (+) চেপে ক্লাউড ফাইল লিঙ্ক শেয়ার করতে পারবেন।",
+                                    text = if (isBn) {
+                                        "🔒 সাব-অ্যাকাউন্ট মোড: চ্যাট নিষিদ্ধ। শুধুমাত্র (+) চেপে ক্লাউড ফাইল লিঙ্ক শেয়ার করতে পারবেন।"
+                                    } else {
+                                        "🔒 Sub-Account Mode: Chat is disabled. Tap (+) to share Cloud Drive file links only."
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onErrorContainer,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
@@ -328,7 +364,7 @@ fun IplusChatDetailScreen(
                                 value = inputText,
                                 onValueChange = { inputText = it },
                                 modifier = Modifier.weight(1f),
-                                placeholder = { Text("মেসেজ লিখুন...") },
+                                placeholder = { Text(if (isBn) "মেসেজ লিখুন..." else "Write a message...") },
                                 shape = RoundedCornerShape(24.dp),
                                 maxLines = 4
                             )
@@ -371,7 +407,10 @@ fun IplusChatDetailScreen(
         AlertDialog(
             onDismissRequest = { showAttachmentSheet = false },
             title = {
-                Text("ফাইল ও মিডিয়া শেয়ার করুন (Share)", fontWeight = FontWeight.Bold)
+                Text(
+                    if (isBn) "ফাইল ও মিডিয়া শেয়ার করুন (Share)" else "Share Files & Media",
+                    fontWeight = FontWeight.Bold
+                )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -401,8 +440,12 @@ fun IplusChatDetailScreen(
                             ) {
                                 Text("🖼️", fontSize = 28.sp)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("গ্যালারি", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text("ছবি ও ভিডিও", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                                Text(if (isBn) "গ্যালারি" else "Gallery", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(
+                                    if (isBn) "ছবি ও ভিডিও" else "Photos & Videos",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
                             }
                         }
 
@@ -428,8 +471,12 @@ fun IplusChatDetailScreen(
                             ) {
                                 Text("📦", fontSize = 28.sp)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("অ্যাপ্স / APK", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text("অ্যাপ্লিকেশন শেয়ার", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                                Text(if (isBn) "অ্যাপ্স / APK" else "Apps / APK", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(
+                                    if (isBn) "অ্যাপ্লিকেশন শেয়ার" else "Share Apps",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
                             }
                         }
                     }
@@ -460,7 +507,7 @@ fun IplusChatDetailScreen(
                             ) {
                                 Text("📄", fontSize = 28.sp)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("ডকুমেন্ট", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(if (isBn) "ডকুমেন্ট" else "Documents", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 Text("PDF, Office, Zip", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
                             }
                         }
@@ -481,8 +528,12 @@ fun IplusChatDetailScreen(
                             ) {
                                 Text("☁️", fontSize = 28.sp)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("কুঞ্জ ড্রাইভ", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text("ক্লাউড ফাইলস", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                                Text(if (isBn) "কুঞ্জ ড্রাইভ" else "Kunjo Drive", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(
+                                    if (isBn) "ক্লাউড ফাইলস" else "Cloud Files",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
                             }
                         }
                     }
@@ -496,7 +547,10 @@ fun IplusChatDetailScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("🛡️ স্ক্রিনশট ব্লক (FLAG_SECURE)", fontSize = 12.sp)
+                            Text(
+                                if (isBn) "🛡️ স্ক্রিনশট ব্লক (FLAG_SECURE)" else "🛡️ Block Screenshots (FLAG_SECURE)",
+                                fontSize = 12.sp
+                            )
                         }
                         Switch(checked = flagSecureEnabled, onCheckedChange = onFlagSecureChanged)
                     }
@@ -509,7 +563,10 @@ fun IplusChatDetailScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("⏱️ ১-টাইম ভিউ (View Once)", fontSize = 12.sp)
+                            Text(
+                                if (isBn) "⏱️ ১-টাইম ভিউ (View Once)" else "⏱️ View Once",
+                                fontSize = 12.sp
+                            )
                         }
                         Switch(checked = isViewOnceEnabled, onCheckedChange = { isViewOnceEnabled = it })
                     }
@@ -517,7 +574,7 @@ fun IplusChatDetailScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showAttachmentSheet = false }) {
-                    Text("বন্ধ করুন")
+                    Text(if (isBn) "বন্ধ করুন" else "Close")
                 }
             }
         )
@@ -528,7 +585,10 @@ fun IplusChatDetailScreen(
         AlertDialog(
             onDismissRequest = { showAttachmentDialog = false },
             title = {
-                Text("কুঞ্জ ক্লাউড ড্রাইভ ফাইল নির্বাচন", fontWeight = FontWeight.Bold)
+                Text(
+                    if (isBn) "কুঞ্জ ক্লাউড ড্রাইভ ফাইল নির্বাচন" else "Select Kunjo Cloud Drive File",
+                    fontWeight = FontWeight.Bold
+                )
             },
             text = {
                 val filteredDriveFiles = remember(recentDriveFiles, dialogFilterCategory, dialogSearchQuery) {
@@ -548,7 +608,11 @@ fun IplusChatDetailScreen(
 
                 Column {
                     Text(
-                        "কুঞ্জ ড্রাইভ থেকে জিরো-রিআপলোড মেকানিজমে ফাইলটি লিঙ্ক আকারে চ্যাটে যুক্ত হবে।",
+                        if (isBn) {
+                            "কুঞ্জ ড্রাইভ থেকে জিরো-রিআপলোড মেকানিজমে ফাইলটি লিঙ্ক আকারে চ্যাটে যুক্ত হবে।"
+                        } else {
+                            "Files from Kunjo Drive are attached to chat via zero-reupload links."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -558,7 +622,12 @@ fun IplusChatDetailScreen(
                     OutlinedTextField(
                         value = dialogSearchQuery,
                         onValueChange = { dialogSearchQuery = it },
-                        placeholder = { Text("🔍 ফাইলের নাম দিয়ে খুঁজুন...", fontSize = 12.sp) },
+                        placeholder = {
+                            Text(
+                                if (isBn) "🔍 ফাইলের নাম দিয়ে খুঁজুন..." else "🔍 Search by file name...",
+                                fontSize = 12.sp
+                            )
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
                         singleLine = true
@@ -580,7 +649,7 @@ fun IplusChatDetailScreen(
                                 modifier = Modifier.clickable { dialogFilterCategory = cat }
                             ) {
                                 Text(
-                                    text = cat.title,
+                                    text = cat.label(isBn),
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
@@ -600,7 +669,10 @@ fun IplusChatDetailScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("🛡️ স্ক্রিনশট ব্লক (FLAG_SECURE)", fontSize = 12.sp)
+                            Text(
+                                if (isBn) "🛡️ স্ক্রিনশট ব্লক (FLAG_SECURE)" else "🛡️ Block Screenshots (FLAG_SECURE)",
+                                fontSize = 12.sp
+                            )
                         }
                         Switch(checked = flagSecureEnabled, onCheckedChange = onFlagSecureChanged)
                     }
@@ -613,14 +685,21 @@ fun IplusChatDetailScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("⏱️ ১-টাইম ভিউ (View Once)", fontSize = 12.sp)
+                            Text(
+                                if (isBn) "⏱️ ১-টাইম ভিউ (View Once)" else "⏱️ View Once",
+                                fontSize = 12.sp
+                            )
                         }
                         Switch(checked = isViewOnceEnabled, onCheckedChange = { isViewOnceEnabled = it })
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "আপনার কুঞ্জ ড্রাইভের ফাইলসমূহ (${filteredDriveFiles.size}টি):",
+                        text = if (isBn) {
+                            "আপনার কুঞ্জ ড্রাইভের ফাইলসমূহ (${filteredDriveFiles.size}টি):"
+                        } else {
+                            "Your Kunjo Drive Files (${filteredDriveFiles.size}):"
+                        },
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -628,8 +707,11 @@ fun IplusChatDetailScreen(
 
                     if (filteredDriveFiles.isEmpty()) {
                         Text(
-                            text = if (recentDriveFiles.isEmpty()) "কুঞ্জ ড্রাইভে কোনো সাম্প্রতিক ফাইল পাওয়া যায়নি।"
-                                   else "নির্বাচিত ক্যাটাগরি বা সার্চে কোনো ফাইল পাওয়া যায়নি।",
+                            text = if (recentDriveFiles.isEmpty()) {
+                                if (isBn) "কুঞ্জ ড্রাইভে কোনো সাম্প্রতিক ফাইল পাওয়া যায়নি।" else "No recent files found in Kunjo Drive."
+                            } else {
+                                if (isBn) "নির্বাচিত ক্যাটাগরি বা সার্চে কোনো ফাইল পাওয়া যায়নি।" else "No files matched your category or search."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.outline,
                             modifier = Modifier.padding(vertical = 14.dp)
@@ -674,7 +756,10 @@ fun IplusChatDetailScreen(
                                             maxLines = 1
                                         )
                                         Text(
-                                            text = Formatters.bytes(driveFile.sizeBytes) + if (isOverLimit) " (২ GB এর বেশি - সাব-অ্যাকাউন্টে নিষিদ্ধ)" else "",
+                                            text = Formatters.bytes(driveFile.sizeBytes) + if (isOverLimit) {
+                                                if (isBn) " (২ GB এর বেশি - সাব-অ্যাকাউন্টে নিষিদ্ধ)"
+                                                else " (Over 2 GB - restricted on sub-accounts)"
+                                            } else "",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = if (isOverLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
                                         )
@@ -687,7 +772,7 @@ fun IplusChatDetailScreen(
             },
             confirmButton = {
                 Button(onClick = { showAttachmentDialog = false }) {
-                    Text("যুক্ত করুন")
+                    Text(if (isBn) "যুক্ত করুন" else "Attach")
                 }
             },
             dismissButton = {
@@ -696,7 +781,7 @@ fun IplusChatDetailScreen(
                     selectedCloudFileName = null
                     showAttachmentDialog = false
                 }) {
-                    Text("বাতিল")
+                    Text(if (isBn) "বাতিল" else "Cancel")
                 }
             }
         )
@@ -706,11 +791,16 @@ fun IplusChatDetailScreen(
     policyBlockAlert?.let { msg ->
         AlertDialog(
             onDismissRequest = { policyBlockAlert = null },
-            title = { Text("⛔ পলিসি ব্লকার (Policy Restriction)", fontWeight = FontWeight.Bold) },
+            title = {
+                Text(
+                    if (isBn) "⛔ পলিসি ব্লকার (Policy Restriction)" else "⛔ Policy Restriction",
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = { Text(msg, style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
                 Button(onClick = { policyBlockAlert = null }) {
-                    Text("বুঝেছি")
+                    Text(if (isBn) "বুঝেছি" else "Got It")
                 }
             }
         )
@@ -727,6 +817,7 @@ fun IplusMessageBubble(
     onOpenPdf: (String) -> Unit,
     onSaveToMyDrive: (String) -> Unit
 ) {
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val isOut = message.isOutgoing
     val fileOpener = LocalFileOpener.current
     var revealedThisSession by remember(message.messageId) { mutableStateOf(false) }
@@ -763,7 +854,11 @@ fun IplusMessageBubble(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            if (isViewOnceLocked) "View Once (মেয়াদ শেষ)" else "View Once (একবার দেখলেই লিংক এক্সপায়ার)",
+                            if (isViewOnceLocked) {
+                                if (isBn) "View Once (মেয়াদ শেষ)" else "View Once (Expired)"
+                            } else {
+                                if (isBn) "View Once (একবার দেখলেই লিংক এক্সপায়ার)" else "View Once (Expires after 1 view)"
+                            },
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFFFB300)
@@ -773,7 +868,11 @@ fun IplusMessageBubble(
 
                 if (isViewOnceLocked) {
                     Text(
-                        text = "⏱️ এই View-Once বার্তাটি দেখা হয়ে গেছে ও লক করা হয়েছে।",
+                        text = if (isBn) {
+                            "⏱️ এই View-Once বার্তাটি দেখা হয়ে গেছে ও লক করা হয়েছে।"
+                        } else {
+                            "⏱️ This View-Once message has been viewed and locked."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = (if (isOut) Color.White else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.7f)
                     )
@@ -784,7 +883,11 @@ fun IplusMessageBubble(
                             onMarkViewOnceViewed()
                         }
                     ) {
-                        Text("👁️ একবার দেখতে ট্যাপ করুন", color = Color(0xFFFFB300), fontWeight = FontWeight.Bold)
+                        Text(
+                            if (isBn) "👁️ একবার দেখতে ট্যাপ করুন" else "👁️ Tap to view once",
+                            color = Color(0xFFFFB300),
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 } else {
                 // Text Content
@@ -862,11 +965,11 @@ fun IplusMessageBubble(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = when {
-                                                isApk -> "অ্যাপ্লিকেশন / APK (দেওয়ানগ্রাম)"
-                                                isVideo -> "ভিডিও (কুঞ্জ সিনেমা প্লেয়ার)"
-                                                isAudio -> "অডিও (কুঞ্জ মিউজিক স্টুডিও)"
-                                                isPdf -> "পিডিএফ ডকুমেন্ট (কুঞ্জ রিডার)"
-                                                else -> "সংযুক্ত ফাইল (Attachment)"
+                                                isApk -> if (isBn) "অ্যাপ্লিকেশন / APK (দেওয়ানগ্রাম)" else "App / APK (DewanGram)"
+                                                isVideo -> if (isBn) "ভিডিও (কুঞ্জ সিনেমা প্লেয়ার)" else "Video (Kunjo Cinema Player)"
+                                                isAudio -> if (isBn) "অডিও (কুঞ্জ মিউজিক স্টুডিও)" else "Audio (Kunjo Music Studio)"
+                                                isPdf -> if (isBn) "পিডিএফ ডকুমেন্ট (কুঞ্জ রিডার)" else "PDF Document (Kunjo Reader)"
+                                                else -> if (isBn) "সংযুক্ত ফাইল (Attachment)" else "Attachment"
                                             },
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold
@@ -910,11 +1013,11 @@ fun IplusMessageBubble(
                                 ) {
                                     Text(
                                         when {
-                                            isApk -> "📦 ইন্সটল / ওপেন করুন"
-                                            isImage -> "🔍 ফুল স্ক্রিন ছবি"
-                                            isVideo -> "প্লে করুন 🎬"
-                                            isAudio -> "শুনুন 🎵"
-                                            else -> "খুলুন 📄"
+                                            isApk -> if (isBn) "📦 ইন্সটল / ওপেন করুন" else "📦 Install / Open"
+                                            isImage -> if (isBn) "🔍 ফুল স্ক্রিন ছবি" else "🔍 View Fullscreen"
+                                            isVideo -> if (isBn) "প্লে করুন 🎬" else "Play 🎬"
+                                            isAudio -> if (isBn) "শুনুন 🎵" else "Listen 🎵"
+                                            else -> if (isBn) "খুলুন 📄" else "Open 📄"
                                         }
                                     )
                                 }

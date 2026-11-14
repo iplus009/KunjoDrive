@@ -666,7 +666,7 @@ private fun PreviewPane(
 
             is PreviewContent.PolicyBlocked -> EmptyState(
                 icon = Icons.Outlined.Description,
-                title = "স্ট্রিমিং সীমাবদ্ধ",
+                title = if (com.novo.drive.presentation.common.isBengaliUi()) "স্ট্রিমিং সীমাবদ্ধ" else "Streaming Restricted",
                 description = current.message,
                 actionLabel = if (file.hasLocalCopy) null else stringResource(Res.string.common_download),
                 onAction = if (file.hasLocalCopy) null else ({ viewModel.download(file) })

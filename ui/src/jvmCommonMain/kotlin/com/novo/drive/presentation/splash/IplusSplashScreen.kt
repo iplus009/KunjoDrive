@@ -298,7 +298,7 @@ fun KunjoSplashScreen(
                     .alpha(titleAlpha.value)
             ) {
                 Text(
-                    text = "কুঞ্জ · KUNJO",
+                    text = if (com.novo.drive.presentation.common.isBengaliUi()) "কুঞ্জ · KUNJO" else "KUNJO",
                     fontSize = 26.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 3.2.sp,

@@ -142,16 +142,19 @@ class MainActivity : FragmentActivity() {
         ?.takeIf { it.action == AppNotifications.ACTION_OPEN_DESTINATION }
         ?.getStringExtra(AppNotifications.EXTRA_DESTINATION)
 
-    private var appliedLegacyLangCode: String = AppLanguage.SYSTEM.code
+    private var appliedLegacyLangCode: String = AppLanguage.ENGLISH.code
 
     override fun attachBaseContext(newBase: Context) {
+        val cached = newBase.getSharedPreferences(LOCALE_CACHE_PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_LOCALE_CODE, AppLanguage.ENGLISH.code)
+            ?: AppLanguage.ENGLISH.code
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (cached == AppLanguage.ENGLISH.code) {
+                Locale.setDefault(Locale.forLanguageTag("en"))
+            }
             super.attachBaseContext(newBase)
             return
         }
-        val cached = newBase.getSharedPreferences(LOCALE_CACHE_PREFS, Context.MODE_PRIVATE)
-            .getString(KEY_LOCALE_CODE, AppLanguage.SYSTEM.code)
-            ?: AppLanguage.SYSTEM.code
         appliedLegacyLangCode = cached
         if (cached == AppLanguage.ENGLISH.code || cached == AppLanguage.BENGALI.code) {
             val target = Locale.forLanguageTag(cached)

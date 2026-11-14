@@ -534,11 +534,12 @@ fun AppNavHost(
                 val adminSet = groupEntity.adminIds.split(",").filter { it.isNotBlank() }.toSet()
                 val allowedSet = groupEntity.allowedSenderIds.split(",").filter { it.isNotBlank() }.toSet()
                 val liveMembers = groupMembersMap[route.chatId].orEmpty()
+                val isBn = com.novo.drive.presentation.common.isBengaliUi()
                 val memberList = liveMembers.ifEmpty {
                     listOf(
                         GroupMemberItem(
                             userId = effectiveUserId,
-                            name = "আপনি (You)",
+                            name = if (isBn) "আপনি (You)" else "You",
                             username = prefs.kunjoUsername.ifBlank { "me" },
                             role = if (groupEntity.ownerId == effectiveUserId) "OWNER"
                             else if (adminSet.contains(effectiveUserId.toString())) "ADMIN"
@@ -575,6 +576,7 @@ fun AppNavHost(
             }
 
             if (showAddMemberDialog && route.isGroup) {
+                val isBn = com.novo.drive.presentation.common.isBengaliUi()
                 val contactsList by messageViewModel.contacts.collectAsStateWithLifecycle()
                 val searchResultsList by messageViewModel.searchResults.collectAsStateWithLifecycle()
                 val candidates = if (memberSearchQuery.isNotBlank()) {
@@ -585,14 +587,14 @@ fun AppNavHost(
                             userId = it.userId,
                             username = it.username,
                             displayName = it.displayName,
-                            roleBadge = "কন্টাক্ট",
+                            roleBadge = if (isBn) "কন্টাক্ট" else "Contact",
                             avatarEmoji = it.avatarValue
                         )
                     }
                 }
                 AlertDialog(
                     onDismissRequest = { showAddMemberDialog = false },
-                    title = { Text("নতুন সদস্য যুক্ত করুন") },
+                    title = { Text(if (isBn) "নতুন সদস্য যুক্ত করুন" else "Add New Member") },
                     text = {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             OutlinedTextField(
@@ -601,13 +603,13 @@ fun AppNavHost(
                                     memberSearchQuery = it
                                     messageViewModel.searchUsers(it)
                                 },
-                                label = { Text("@ইউজারনেম খুঁজুন") },
+                                label = { Text(if (isBn) "@ইউজারনেম খুঁজুন" else "Search @username") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             if (candidates.isEmpty()) {
-                                Text("কোনো ব্যবহারকারী পাওয়া যায়নি। @username লিখে সার্চ করুন।")
+                                Text(if (isBn) "কোনো ব্যবহারকারী পাওয়া যায়নি। @username লিখে সার্চ করুন।" else "No users found. Search by typing @username.")
                             } else {
                                 LazyColumn(modifier = Modifier.height(200.dp)) {
                                     items(candidates) { user ->
@@ -628,7 +630,7 @@ fun AppNavHost(
                     },
                     confirmButton = {
                         TextButton(onClick = { showAddMemberDialog = false }) {
-                            Text("বন্ধ করুন")
+                            Text(if (isBn) "বন্ধ করুন" else "Close")
                         }
                     }
                 )

@@ -235,7 +235,9 @@ class HomeViewModel(
         if (name.isBlank()) return
         viewModelScope.launch {
             when (val res = fileRepository.createFolder(null, name.trim())) {
-                is AppResult.Success -> _messages.tryEmit(UiText.Plain("'${res.value.name}' ফোল্ডার তৈরি হয়েছে"))
+                is AppResult.Success -> _messages.tryEmit(
+                    UiText.Plain(com.novo.drive.core.common.bi("Created folder '${res.value.name}'", "'${res.value.name}' ফোল্ডার তৈরি হয়েছে"))
+                )
                 is AppResult.Failure -> _messages.tryEmit(res.error.toUiText())
             }
         }
@@ -245,7 +247,9 @@ class HomeViewModel(
         if (newName.isBlank()) return
         viewModelScope.launch {
             when (val res = fileRepository.renameFolder(folderId, newName.trim())) {
-                is AppResult.Success -> _messages.tryEmit(UiText.Plain("ফোল্ডারের নাম পরিবর্তন করা হয়েছে"))
+                is AppResult.Success -> _messages.tryEmit(
+                    UiText.Plain(com.novo.drive.core.common.bi("Folder renamed", "ফোল্ডারের নাম পরিবর্তন করা হয়েছে"))
+                )
                 is AppResult.Failure -> _messages.tryEmit(res.error.toUiText())
             }
         }
@@ -253,12 +257,16 @@ class HomeViewModel(
 
     fun moveFolderToRoot(folder: DriveFolder) {
         if (folder.parentId == null) {
-            _messages.tryEmit(UiText.Plain("ফোল্ডারটি ইতিমধ্যেই মূল রুট ফোল্ডারে রয়েছে"))
+            _messages.tryEmit(
+                UiText.Plain(com.novo.drive.core.common.bi("Folder is already in the root drive", "ফোল্ডারটি ইতিমধ্যেই মূল রুট ফোল্ডারে রয়েছে"))
+            )
             return
         }
         viewModelScope.launch {
             when (val res = fileRepository.moveFolder(folder.id, null)) {
-                is AppResult.Success -> _messages.tryEmit(UiText.Plain("'${folder.name}' রুট ড্রাইভে সরানো হয়েছে"))
+                is AppResult.Success -> _messages.tryEmit(
+                    UiText.Plain(com.novo.drive.core.common.bi("Moved '${folder.name}' to Root Drive", "'${folder.name}' রুট ড্রাইভে সরানো হয়েছে"))
+                )
                 is AppResult.Failure -> _messages.tryEmit(res.error.toUiText())
             }
         }
@@ -267,7 +275,9 @@ class HomeViewModel(
     fun duplicateFolder(folder: DriveFolder) {
         viewModelScope.launch {
             when (val res = fileRepository.duplicateFolder(folder.id)) {
-                is AppResult.Success -> _messages.tryEmit(UiText.Plain("'${res.value.name}' কপি তৈরি হয়েছে"))
+                is AppResult.Success -> _messages.tryEmit(
+                    UiText.Plain(com.novo.drive.core.common.bi("Created a copy of '${res.value.name}'", "'${res.value.name}' কপি তৈরি হয়েছে"))
+                )
                 is AppResult.Failure -> _messages.tryEmit(res.error.toUiText())
             }
         }
@@ -279,8 +289,11 @@ class HomeViewModel(
             fileRepository.setFolderArchived(folder.id, targetArchived)
             _messages.tryEmit(
                 UiText.Plain(
-                    if (targetArchived) "'${folder.name}' আর্কাইভে সংরক্ষিত হয়েছে"
-                    else "'${folder.name}' আর্কাইভ থেকে ফিরিয়ে আনা হয়েছে"
+                    if (targetArchived) {
+                        com.novo.drive.core.common.bi("'${folder.name}' moved to Archive", "'${folder.name}' আর্কাইভে সংরক্ষিত হয়েছে")
+                    } else {
+                        com.novo.drive.core.common.bi("'${folder.name}' restored from Archive", "'${folder.name}' আর্কাইভ থেকে ফিরিয়ে আনা হয়েছে")
+                    }
                 )
             )
         }
@@ -291,7 +304,9 @@ class HomeViewModel(
             withContext(NonCancellable) {
                 trashRepository.moveFolderToTrash(folder.id)
             }
-            _messages.tryEmit(UiText.Plain("'${folder.name}' ট্র্যাশে সরানো হয়েছে"))
+            _messages.tryEmit(
+                UiText.Plain(com.novo.drive.core.common.bi("Moved '${folder.name}' to Trash", "'${folder.name}' ট্র্যাশে সরানো হয়েছে"))
+            )
         }
     }
 
@@ -305,7 +320,9 @@ class HomeViewModel(
             val files = fileRepository.filesByIds(ids)
             val localPaths = files.mapNotNull { it.localPath }.filter { File(it).exists() }
             if (localPaths.isEmpty()) {
-                _messages.tryEmit(UiText.Plain("এই ফোল্ডারে কোনো লোকাল কপি নেই। আগে ফাইল অফলাইনে ডাউনলোড করুন।"))
+                _messages.tryEmit(
+                    UiText.Plain(com.novo.drive.core.common.bi("No local copies in this folder. Download files offline first.", "এই ফোল্ডারে কোনো লোকাল কপি নেই। আগে ফাইল অফলাইনে ডাউনলোড করুন।"))
+                )
                 return@launch
             }
             val outDir = File(storagePaths.cacheDir, "protected_zips")
@@ -318,7 +335,9 @@ class HomeViewModel(
             if (created != null) {
                 onZipReady(created.absolutePath)
             } else {
-                _messages.tryEmit(UiText.Plain("পাসওয়ার্ড .ZIP তৈরি করা সম্ভব হয়নি"))
+                _messages.tryEmit(
+                    UiText.Plain(com.novo.drive.core.common.bi("Could not create password-protected .ZIP", "পাসওয়ার্ড .ZIP তৈরি করা সম্ভব হয়নি"))
+                )
             }
         }
     }

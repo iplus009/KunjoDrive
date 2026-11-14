@@ -214,7 +214,15 @@ class PreviewViewModel(
         viewModelScope.launch {
             val prefs = settingsRepository.preferences.first()
             if (prefs.kunjoAccountType == "SUB" && !prefs.kunjoCanUpload) {
-                _messages.tryEmit(UiText.Plain("সাব-অ্যাকাউন্টে আপলোডের অনুমতি নেই।"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "Sub-accounts do not have upload permission.",
+                            "সাব-অ্যাকাউন্টে আপলোডের অনুমতি নেই।",
+                            prefs.language
+                        )
+                    )
+                )
                 return@launch
             }
             when (val result = transferRepository.enqueueUpload(file.id)) {
@@ -323,7 +331,15 @@ class PreviewViewModel(
         viewModelScope.launch {
             val prefs = settingsRepository.preferences.first()
             if (prefs.kunjoAccountType == "SUB") {
-                _messages.tryEmit(UiText.Plain("সাব-অ্যাকাউন্ট থেকে ফাইল ট্র্যাশে পাঠানো নিষিদ্ধ।"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "Moving files to trash is restricted on a sub-account.",
+                            "সাব-অ্যাকাউন্ট থেকে ফাইল ট্র্যাশে পাঠানো নিষিদ্ধ।",
+                            prefs.language,
+                        )
+                    )
+                )
                 return@launch
             }
             trashRepository.moveFilesToTrash(listOf(file.id))

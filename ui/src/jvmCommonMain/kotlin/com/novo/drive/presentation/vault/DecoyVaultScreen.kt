@@ -121,6 +121,7 @@ fun DecoyVaultScreen(
     val selectionMode = selectedFileIds.isNotEmpty() || selectedFolderIds.isNotEmpty()
     val totalSelected = selectedFileIds.size + selectedFolderIds.size
     var confirmTrashDialog by remember { mutableStateOf(false) }
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
 
     AppBackHandler(enabled = selectionMode) {
         selectedFileIds = emptySet()
@@ -129,9 +130,13 @@ fun DecoyVaultScreen(
 
     if (confirmTrashDialog) {
         ConfirmDialog(
-            title = "ট্র্যাশে স্থানান্তর করবেন?",
-            message = "নির্বাচিত $totalSelected টি আইটেম ট্র্যাশে পাঠানো হবে।",
-            confirmLabel = "ট্র্যাশে পাঠান",
+            title = if (isBn) "ট্র্যাশে স্থানান্তর করবেন?" else "Move to trash?",
+            message = if (isBn) {
+                "নির্বাচিত $totalSelected টি আইটেম ট্র্যাশে পাঠানো হবে।"
+            } else {
+                "$totalSelected selected item(s) will be moved to trash."
+            },
+            confirmLabel = if (isBn) "ট্র্যাশে পাঠান" else "Move to Trash",
             destructive = true,
             onConfirm = {
                 confirmTrashDialog = false
@@ -169,7 +174,11 @@ fun DecoyVaultScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = if (selectionMode) "$totalSelected টি নির্বাচিত" else "সিকিউর ভল্ট (Secure Vault)",
+                        text = if (selectionMode) {
+                            if (isBn) "$totalSelected টি নির্বাচিত" else "$totalSelected selected"
+                        } else {
+                            if (isBn) "সিকিউর ভল্ট (Secure Vault)" else "Secure Vault"
+                        },
                         fontWeight = FontWeight.Bold,
                         color = primaryText,
                         fontSize = 18.sp
@@ -226,7 +235,7 @@ fun DecoyVaultScreen(
                         }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Undo,
-                                contentDescription = "১ম ভল্টে ফেরত পাঠান",
+                                contentDescription = if (isBn) "১ম ভল্টে ফেরত পাঠান" else "Move back to Primary Vault",
                                 tint = palette.accentSecondary
                             )
                         }
@@ -250,7 +259,7 @@ fun DecoyVaultScreen(
                         }) {
                             Icon(
                                 imageVector = Icons.Filled.Visibility,
-                                contentDescription = "আনহাইড করুন",
+                                contentDescription = if (isBn) "আনহাইড করুন" else "Unhide",
                                 tint = palette.accentPrimary
                             )
                         }
@@ -259,7 +268,7 @@ fun DecoyVaultScreen(
                         IconButton(onClick = { confirmTrashDialog = true }) {
                             Icon(
                                 imageVector = Icons.Filled.Delete,
-                                contentDescription = "মুছে ফেলুন",
+                                contentDescription = if (isBn) "মুছে ফেলুন" else "Delete",
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -272,8 +281,12 @@ fun DecoyVaultScreen(
         if (files.isEmpty() && folders.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.Lock,
-                title = "কোনো গোপন ফাইল নেই",
-                description = "১ম ভল্ট থেকে ফাইল সিলেক্ট করে '২য় ভল্টে স্থানান্তর করুন' বাটনে চাপলে তা এখানে সম্পূর্ণ সুরক্ষিত থাকবে।",
+                title = if (isBn) "কোনো গোপন ফাইল নেই" else "No hidden files",
+                description = if (isBn) {
+                    "১ম ভল্ট থেকে ফাইল সিলেক্ট করে '২য় ভল্টে স্থানান্তর করুন' বাটনে চাপলে তা এখানে সম্পূর্ণ সুরক্ষিত থাকবে।"
+                } else {
+                    "Select files in your primary vault and choose 'Move to 2nd Vault' to keep them hidden here."
+                },
                 modifier = Modifier.padding(padding)
             )
         } else {
@@ -388,7 +401,11 @@ private fun VaultFolderRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${folder.fileCount} টি ফাইল • ${Formatters.bytes(folder.totalBytes)}",
+                    text = if (com.novo.drive.presentation.common.isBengaliUi()) {
+                        "${folder.fileCount} টি ফাইল • ${Formatters.bytes(folder.totalBytes)}"
+                    } else {
+                        "${folder.fileCount} file(s) • ${Formatters.bytes(folder.totalBytes)}"
+                    },
                     fontSize = 11.sp,
                     color = secondaryText,
                     maxLines = 1

@@ -411,7 +411,15 @@ class IplusFilesViewModel(
         viewModelScope.launch {
             val prefs = settingsRepository.preferences.first()
             if (prefs.kunjoAccountType == "SUB") {
-                _messages.tryEmit(UiText.Plain("সাব-অ্যাকাউন্টে ফাইল ডিলিট বা ট্র্যাশে পাঠানোর অনুমতি নেই"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "Deleting files or moving to trash is not permitted on a sub-account.",
+                            "সাব-অ্যাকাউন্টে ফাইল ডিলিট বা ট্র্যাশে পাঠানোর অনুমতি নেই",
+                            prefs.language,
+                        )
+                    )
+                )
                 return@launch
             }
             _working.value = UiText.Resource(Res.string.files_moving_to_trash, total)
@@ -430,7 +438,15 @@ class IplusFilesViewModel(
         viewModelScope.launch {
             val prefs = settingsRepository.preferences.first()
             if (prefs.kunjoAccountType == "SUB" && !prefs.kunjoCanUpload) {
-                _messages.tryEmit(UiText.Plain("সাব-অ্যাকাউন্টে ক্লাউড আপলোডের অনুমতি নেই"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "Cloud uploads are not permitted on a sub-account.",
+                            "সাব-অ্যাকাউন্টে ক্লাউড আপলোডের অনুমতি নেই",
+                            prefs.language,
+                        )
+                    )
+                )
                 return@launch
             }
             var failures = 0
@@ -658,7 +674,15 @@ class IplusFilesViewModel(
         importScope.launch {
             val prefs = settingsRepository.preferences.first()
             if (prefs.kunjoAccountType == "SUB" && !prefs.kunjoCanUpload) {
-                _messages.tryEmit(UiText.Plain("সাব-অ্যাকাউন্টে ক্লাউড আপলোডের অনুমতি নেই"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "Cloud uploads are not permitted on a sub-account.",
+                            "সাব-অ্যাকাউন্টে ক্লাউড আপলোডের অনুমতি নেই",
+                            prefs.language,
+                        )
+                    )
+                )
                 return@launch
             }
             val sources = uris.flatMap { uri -> fileImporter.expand(uri) }
@@ -834,17 +858,35 @@ class IplusFilesViewModel(
     ) {
         val ids = selection.value.toList()
         if (encryptAes256 && password.isBlank()) {
-            _messages.tryEmit(UiText.Plain("AES-256 সুরক্ষিত জিপের জন্য পাসওয়ার্ড দিন"))
+            _messages.tryEmit(
+                UiText.Plain(
+                    com.novo.drive.core.common.bi(
+                        "Enter a password for the AES-256 protected ZIP",
+                        "AES-256 সুরক্ষিত জিপের জন্য পাসওয়ার্ড দিন",
+                    )
+                )
+            )
             return
         }
         clearSelection()
         viewModelScope.launch {
-            _working.value = UiText.Plain("আর্কাইভ প্রস্তুত করা হচ্ছে...")
+            val lang = settingsRepository.preferences.first().language
+            _working.value = UiText.Plain(
+                com.novo.drive.core.common.bi("Preparing archive...", "আর্কাইভ প্রস্তুত করা হচ্ছে...", lang)
+            )
             val files = fileRepository.getFiles(ids)
             val localPaths = files.mapNotNull { it.localPath }.filter { File(it).exists() }
             if (localPaths.isEmpty()) {
                 _working.value = null
-                _messages.tryEmit(UiText.Plain("লক জিপ তৈরির জন্য অন্তত একটি লোকাল ফাইল থাকা প্রয়োজন"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "At least one local file is required to create a locked ZIP",
+                            "লক জিপ তৈরির জন্য অন্তত একটি লোকাল ফাইল থাকা প্রয়োজন",
+                            lang,
+                        )
+                    )
+                )
                 return@launch
             }
             val outputDir = storagePaths.cacheDir
@@ -858,10 +900,26 @@ class IplusFilesViewModel(
             )
             _working.value = null
             if (result != null) {
-                _messages.tryEmit(UiText.Plain("সুরক্ষিত জিপ সফলভাবে তৈরি হয়েছে: ${result.name}"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "Protected ZIP created: ${result.name}",
+                            "সুরক্ষিত জিপ সফলভাবে তৈরি হয়েছে: ${result.name}",
+                            lang,
+                        )
+                    )
+                )
                 importAndUpload(listOf(result.absolutePath), folderId)
             } else {
-                _messages.tryEmit(UiText.Plain("সুরক্ষিত জিপ তৈরি ব্যর্থ হয়েছে"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "Failed to create protected ZIP",
+                            "সুরক্ষিত জিপ তৈরি ব্যর্থ হয়েছে",
+                            lang,
+                        )
+                    )
+                )
             }
         }
     }

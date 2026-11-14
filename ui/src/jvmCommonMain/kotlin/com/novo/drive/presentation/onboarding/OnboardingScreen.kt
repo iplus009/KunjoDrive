@@ -306,6 +306,7 @@ fun OnboardingScreen(
                         when (step) {
                             OnboardingStep.WELCOME -> WelcomeStep(
                                 working = state.working,
+                                error = state.error,
                                 onSubmitCredentials = viewModel::submitCredentials,
                                 onFamilyLogin = viewModel::startFamilyLogin
                             )
@@ -623,18 +624,32 @@ private fun StepTitle(title: String, description: String) {
     }
 }
 
+private fun parseApiCredentialsFromClipboard(raw: String): Pair<String?, String?> {
+    val clip = raw.trim()
+    if (clip.isEmpty()) return null to null
+    val hexMatch = Regex("""[0-9a-fA-F]{32}""").find(clip)?.value
+    val idMatch = Regex("""(?<!\w)(\d{5,10})(?!\w)""").find(clip)?.value
+    if (idMatch != null || hexMatch != null) return idMatch to hexMatch
+    return if (clip.all { it.isDigit() }) clip to null
+    else if (clip.length == 32) null to clip
+    else null to null
+}
+
 @Composable
 private fun WelcomeStep(
     working: Boolean,
+    error: UiText? = null,
     onSubmitCredentials: (String, String) -> Unit,
     onFamilyLogin: () -> Unit
 ) {
     val isBn = LocalLocaleList.current.firstOrNull()?.language?.startsWith("bn") == true
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
+    val clipboardManager = LocalClipboardManager.current
 
-    var apiId by rememberSaveable { mutableStateOf("21724456") }
-    var apiHash by rememberSaveable { mutableStateOf("9e36814b7e9bfcf9d56ffcfbe4d19326") }
+    var apiId by rememberSaveable { mutableStateOf("") }
+    var apiHash by rememberSaveable { mutableStateOf("") }
     var hashVisible by rememberSaveable { mutableStateOf(false) }
+    var showGuide by rememberSaveable { mutableStateOf(false) }
 
     val cardBg = if (isDark) Color(0xFF1E222A) else Color(0xFFF2EFE9)
     val textPrimary = if (isDark) Color(0xFFECEFF4) else Color(0xFF1A1D20)
@@ -699,16 +714,60 @@ private fun WelcomeStep(
 
         Spacer(Modifier.height(18.dp))
 
-        // Title matching "Log in to Window Seat"
         Text(
-            text = if (isBn) "Log in to সঞ্চয়িকা" else "Log in to Sanchayika",
+            text = if (isBn) "কুঞ্জ ড্রাইভে লগ ইন করুন" else "Log in to Kunjo Drive",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = textPrimary,
             textAlign = TextAlign.Center
         )
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(14.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            TextButton(
+                onClick = { showGuide = true },
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.HelpOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = stringResource(Res.string.onboarding_where_i_get_these),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            TextButton(
+                onClick = {
+                    val clip = clipboardManager.getText()?.text ?: ""
+                    val (parsedId, parsedHash) = parseApiCredentialsFromClipboard(clip)
+                    if (parsedId != null) apiId = parsedId
+                    if (parsedHash != null) apiHash = parsedHash
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    Icons.Filled.ContentPaste,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = stringResource(Res.string.onboarding_auto_paste),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
 
         // Field 1: API ID Card
         Row(
@@ -716,7 +775,7 @@ private fun WelcomeStep(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
                 .background(cardBg)
-                .padding(horizontal = 16.dp, vertical = 6.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -728,7 +787,7 @@ private fun WelcomeStep(
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "API ID",
+                    text = stringResource(Res.string.onboarding_api_id),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     color = textSecondary
@@ -737,11 +796,22 @@ private fun WelcomeStep(
                     value = apiId,
                     onValueChange = { apiId = it.filter(Char::isDigit) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     textStyle = TextStyle(
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = textPrimary
                     ),
+                    decorationBox = { innerTextField ->
+                        if (apiId.isEmpty()) {
+                            Text(
+                                text = if (isBn) "my.telegram.org থেকে API ID দিন" else "Enter Telegram API ID from my.telegram.org",
+                                fontSize = 14.sp,
+                                color = textSecondary.copy(alpha = 0.7f)
+                            )
+                        }
+                        innerTextField()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 2.dp)
@@ -757,7 +827,7 @@ private fun WelcomeStep(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
                 .background(cardBg)
-                .padding(horizontal = 16.dp, vertical = 6.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -769,7 +839,7 @@ private fun WelcomeStep(
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "API Hash",
+                    text = stringResource(Res.string.onboarding_api_hash),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     color = textSecondary
@@ -784,6 +854,16 @@ private fun WelcomeStep(
                         fontWeight = FontWeight.SemiBold,
                         color = textPrimary
                     ),
+                    decorationBox = { innerTextField ->
+                        if (apiHash.isEmpty()) {
+                            Text(
+                                text = if (isBn) "৩২ অক্ষরের API Hash দিন" else "Enter 32-character API Hash",
+                                fontSize = 14.sp,
+                                color = textSecondary.copy(alpha = 0.7f)
+                            )
+                        }
+                        innerTextField()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 2.dp)
@@ -802,16 +882,28 @@ private fun WelcomeStep(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        error?.let { err ->
+            Spacer(Modifier.height(12.dp))
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = err.resolve(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(22.dp))
 
         // Primary Button matching reference photo dark pill button
         Button(
-            onClick = {
-                val finalId = apiId.ifBlank { "21724456" }
-                val finalHash = apiHash.ifBlank { "9e36814b7e9bfcf9d56ffcfbe4d19326" }
-                onSubmitCredentials(finalId, finalHash)
-            },
-            enabled = !working,
+            onClick = { onSubmitCredentials(apiId.trim(), apiHash.trim()) },
+            enabled = !working && apiId.isNotBlank() && apiHash.isNotBlank(),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(54.dp),
@@ -839,7 +931,7 @@ private fun WelcomeStep(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = if (isBn) "এগিয়ে যান (Continue ➔)" else "Continue ➔",
+                        text = if (isBn) "এগিয়ে যান ➔" else "Continue ➔",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -849,7 +941,6 @@ private fun WelcomeStep(
 
         Spacer(Modifier.height(20.dp))
 
-        // Divider: "─ Or log in with ─"
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -861,7 +952,7 @@ private fun WelcomeStep(
                     .background(if (isDark) Color(0xFF2A313E) else Color(0xFFDDD8CE))
             )
             Text(
-                text = "  Or log in with  ",
+                text = if (isBn) "  অথবা লগইন করুন  " else "  Or log in with  ",
                 fontSize = 12.sp,
                 color = textSecondary
             )
@@ -892,13 +983,17 @@ private fun WelcomeStep(
                 Text(text = "👨‍👩‍👧", fontSize = 16.sp)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Login with Sub / Family",
+                    text = if (isBn) "ফ্যামিলি / সাব-অ্যাকাউন্ট লগইন" else "Login with Sub / Family",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = textPrimary
                 )
             }
         }
+    }
+
+    if (showGuide) {
+        ApiGuideDialog(onDismiss = { showGuide = false })
     }
 }
 
@@ -1152,17 +1247,10 @@ private fun CredentialsStep(
     val clipboardManager = LocalClipboardManager.current
 
     fun autoPasteFromClipboard() {
-        val clip = clipboardManager.getText()?.text?.trim() ?: ""
-        if (clip.isNotEmpty()) {
-            val hexMatch = Regex("""[0-9a-fA-F]{32}""").find(clip)?.value
-            val idMatch = Regex("""(?<!\w)(\d{5,10})(?!\w)""").find(clip)?.value
-            if (idMatch != null) apiId = idMatch
-            if (hexMatch != null) apiHash = hexMatch
-            if (idMatch == null && hexMatch == null) {
-                if (clip.all { it.isDigit() }) apiId = clip
-                else if (clip.length == 32) apiHash = clip
-            }
-        }
+        val clip = clipboardManager.getText()?.text ?: ""
+        val (parsedId, parsedHash) = parseApiCredentialsFromClipboard(clip)
+        if (parsedId != null) apiId = parsedId
+        if (parsedHash != null) apiHash = parsedHash
     }
 
     OnboardingPage(

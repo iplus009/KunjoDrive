@@ -122,7 +122,12 @@ fun ProvideDesktopPlatformActions(content: @Composable () -> Unit) {
     }
     val deviceOwnerGate = remember {
         DeviceOwnerGate { _, _, onDenied, _ ->
-            onDenied("ডেস্কটপ ওএসে বায়োমেট্রিক বা ডিভাইস ওনার ভেরিফিকেশন সাপোর্টেড নয়। অনুগ্রহ করে ভল্ট পিন ব্যবহার করুন।")
+            onDenied(
+                com.novo.drive.core.common.bi(
+                    "Biometric or device-owner verification is not supported on desktop. Please use your Vault PIN.",
+                    "ডেস্কটপ ওএসে বায়োমেট্রিক বা ডিভাইস ওনার ভেরিফিকেশন সাপোর্টেড নয়। অনুগ্রহ করে ভল্ট পিন ব্যবহার করুন।"
+                )
+            )
         }
     }
 

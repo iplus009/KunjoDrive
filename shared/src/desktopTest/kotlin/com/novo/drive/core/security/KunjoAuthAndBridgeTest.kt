@@ -2,9 +2,13 @@ package com.novo.drive.core.security
 
 import com.novo.drive.core.bridge.KunjoBridgeImpl
 import com.novo.drive.core.bridge.SecurityBridge
+import com.novo.drive.core.common.bi
 import com.novo.drive.core.network.KunjoUserDto
+import com.novo.drive.core.network.SupabaseRegisterOutcome
+import com.novo.drive.core.network.SupabaseRestClient
 import com.novo.drive.data.repository.KunjoAuthRepository
 import com.novo.drive.data.repository.KunjoAuthResult
+import com.novo.drive.domain.model.AppLanguage
 import com.novo.drive.domain.model.UserPreferences
 import com.novo.drive.domain.repository.SettingsRepository
 import com.novo.drive.testing.unused
@@ -19,6 +23,8 @@ import org.junit.Test
 import java.util.Base64
 
 class KunjoAuthAndBridgeTest {
+
+    private val bengaliRegex = Regex("[\\u0980-\\u09FF]")
 
     private fun fakeSettings(): Pair<SettingsRepository, MutableStateFlow<UserPreferences>> {
         val state = MutableStateFlow(UserPreferences())
@@ -154,5 +160,71 @@ class KunjoAuthAndBridgeTest {
 
         assertEquals("unlinked", parsed[2].dewangramUsername)
         assertEquals(0L, parsed[2].telegramUserId)
+    }
+
+    @Test
+    fun `default language is English and bi helper respects explicit language`() {
+        assertEquals(AppLanguage.ENGLISH, UserPreferences().language)
+        assertEquals(AppLanguage.ENGLISH, AppLanguage.fromCode(null))
+        assertEquals(AppLanguage.ENGLISH, AppLanguage.fromCode("invalid-code"))
+        assertEquals(AppLanguage.BENGALI, AppLanguage.fromCode("bn"))
+
+        assertEquals("English", bi("English", "বাংলা", AppLanguage.ENGLISH))
+        assertEquals("বাংলা", bi("English", "বাংলা", AppLanguage.BENGALI))
+    }
+
+    @Test
+    fun `SupabaseRestClient parseRegisterResponse classifies status codes and bounds error body`() {
+        assertEquals(SupabaseRegisterOutcome.Success, SupabaseRestClient.parseRegisterResponse(201, ""))
+        assertEquals(SupabaseRegisterOutcome.Success, SupabaseRestClient.parseRegisterResponse(204, ""))
+        assertEquals(SupabaseRegisterOutcome.Conflict, SupabaseRestClient.parseRegisterResponse(409, "duplicate key"))
+
+        val longError = "E".repeat(250)
+        val failure = SupabaseRestClient.parseRegisterResponse(401, longError)
+        assertTrue(failure is SupabaseRegisterOutcome.HttpFailure)
+        failure as SupabaseRegisterOutcome.HttpFailure
+        assertEquals(401, failure.code)
+        assertEquals(160, failure.detail.length)
+    }
+
+    @Test
+    fun `KunjoAuthRepository returns English validation and Supabase errors by default and Bengali when selected`() = runBlocking {
+        val (settings, _) = fakeSettings()
+        val repo = KunjoAuthRepository(settings)
+
+        val shortUser = repo.registerUsernameOnly("ab")
+        assertTrue(shortUser is KunjoAuthResult.Error)
+        val shortMsg = (shortUser as KunjoAuthResult.Error).message
+        assertFalse("Expected English error but got: $shortMsg", bengaliRegex.containsMatchIn(shortMsg))
+        assertTrue(shortMsg.contains("at least 3", ignoreCase = true))
+
+        val badChars = repo.registerUsernameOnly("Bad-Name!")
+        assertTrue(badChars is KunjoAuthResult.Error)
+        val badCharsMsg = (badChars as KunjoAuthResult.Error).message
+        assertFalse("Expected English error but got: $badCharsMsg", bengaliRegex.containsMatchIn(badCharsMsg))
+        assertTrue(badCharsMsg.contains("lowercase", ignoreCase = true))
+
+        val shortPass = repo.registerAccount("alice_test", "123")
+        assertTrue(shortPass is KunjoAuthResult.Error)
+        val shortPassMsg = (shortPass as KunjoAuthResult.Error).message
+        assertFalse("Expected English error but got: $shortPassMsg", bengaliRegex.containsMatchIn(shortPassMsg))
+        assertTrue(shortPassMsg.contains("6 characters", ignoreCase = true))
+
+        listOf(
+            SupabaseRegisterOutcome.MissingConfiguration,
+            SupabaseRegisterOutcome.Conflict,
+            SupabaseRegisterOutcome.HttpFailure(403, "RLS denied"),
+            SupabaseRegisterOutcome.NetworkFailure("timeout")
+        ).forEach { outcome ->
+            val enMsg = repo.formatRegisterFailure(outcome, "alice_test", AppLanguage.ENGLISH)
+            assertFalse("Expected pure English for $outcome: $enMsg", bengaliRegex.containsMatchIn(enMsg))
+            val bnMsg = repo.formatRegisterFailure(outcome, "alice_test", AppLanguage.BENGALI)
+            assertTrue("Expected Bengali for $outcome: $bnMsg", bengaliRegex.containsMatchIn(bnMsg))
+        }
+
+        settings.update { it.copy(language = AppLanguage.BENGALI) }
+        val bnValidation = repo.registerUsernameOnly("ab")
+        assertTrue(bnValidation is KunjoAuthResult.Error)
+        assertTrue(bengaliRegex.containsMatchIn((bnValidation as KunjoAuthResult.Error).message))
     }
 }

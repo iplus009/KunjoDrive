@@ -340,6 +340,7 @@ private fun AccountSection(
     onLogout: () -> Unit
 ) {
     val indexedSoFar by viewModel.indexedSoFar.collectAsStateWithLifecycle()
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
 
     var showUsernameEditDialog by remember { mutableStateOf(false) }
     var editUsernameInput by remember(state.preferences.kunjoUsername) { mutableStateOf(state.preferences.kunjoUsername) }
@@ -349,10 +350,23 @@ private fun AccountSection(
     if (showUsernameEditDialog) {
         AlertDialog(
             onDismissRequest = { if (!isSaving) showUsernameEditDialog = false },
-            title = { Text(if (state.preferences.kunjoUsername.isBlank()) "ইউনিক ইউজারনেম নির্ধারণ" else "কুঞ্জ ইউজারনেম পরিবর্তন", fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            title = {
+                Text(
+                    text = if (state.preferences.kunjoUsername.isBlank()) {
+                        if (isBn) "ইউনিক ইউজারনেম নির্ধারণ" else "Set Unique Username"
+                    } else {
+                        if (isBn) "কুঞ্জ ইউজারনেম পরিবর্তন" else "Change Kunjo Username"
+                    },
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
             text = {
                 Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-                    Text("আপনার ইউনিক ইউজারনেম লিখুন (a-z, 0-9, _)", fontSize = 12.sp)
+                    Text(
+                        if (isBn) "আপনার ইউনিক ইউজারনেম লিখুন (a-z, 0-9, _)" else "Enter your unique username (a-z, 0-9, _)",
+                        fontSize = 12.sp
+                    )
                     OutlinedTextField(
                         value = editUsernameInput,
                         onValueChange = { editUsernameInput = it; editError = null },
@@ -381,12 +395,18 @@ private fun AccountSection(
                     },
                     enabled = !isSaving && editUsernameInput.isNotBlank()
                 ) {
-                    Text(if (isSaving) "যাচাই হচ্ছে..." else "সংরক্ষণ করুন")
+                    Text(
+                        if (isSaving) {
+                            if (isBn) "যাচাই হচ্ছে..." else "Verifying..."
+                        } else {
+                            if (isBn) "সংরক্ষণ করুন" else "Save"
+                        }
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showUsernameEditDialog = false }, enabled = !isSaving) {
-                    Text("বাতিল")
+                    Text(if (isBn) "বাতিল" else "Cancel")
                 }
             }
         )
@@ -395,10 +415,22 @@ private fun AccountSection(
     SettingsGroup {
         add {
             val username = state.preferences.kunjoUsername
-            val accType = if (state.preferences.kunjoAccountType == "SUB") "👨‍👩‍👧 সাব-অ্যাকাউন্ট" else "👑 মেইন ড্রাইভ"
+            val accType = if (state.preferences.kunjoAccountType == "SUB") {
+                if (isBn) "👨‍👩‍👧 সাব-অ্যাকাউন্ট" else "👨‍👩‍👧 Sub-Account"
+            } else {
+                if (isBn) "👑 মেইন ড্রাইভ" else "👑 Main Drive"
+            }
             SettingsClickRow(
-                title = if (username.isNotBlank()) "KUNJO ID: @$username" else "কুঞ্জ ইউজারনেম (@username)",
-                subtitle = if (username.isNotBlank()) "$accType · ইউনিক ইউজারনেম পরিবর্তন করতে ট্যাপ করুন" else "ইউনিক ইউজারনেম নির্ধারণ করতে ট্যাপ করুন",
+                title = if (username.isNotBlank()) {
+                    "KUNJO ID: @$username"
+                } else {
+                    if (isBn) "কুঞ্জ ইউজারনেম (@username)" else "Kunjo Username (@username)"
+                },
+                subtitle = if (username.isNotBlank()) {
+                    if (isBn) "$accType · ইউনিক ইউজারনেম পরিবর্তন করতে ট্যাপ করুন" else "$accType · Tap to change unique username"
+                } else {
+                    if (isBn) "ইউনিক ইউজারনেম নির্ধারণ করতে ট্যাপ করুন" else "Tap to set a unique username"
+                },
                 titleColor = MaterialTheme.colorScheme.primary,
                 onClick = {
                     editUsernameInput = username
@@ -578,9 +610,10 @@ private fun BackupSection(
             )
         }
         add {
+            val isBn = com.novo.drive.presentation.common.isBengaliUi()
             SettingsSwitchRow(
-                title = "বেডটাইম নাইট-উইন্ডো সিঙ্ক (Bedtime Sync: 12 AM – 6 AM)",
-                subtitle = "চালু থাকলে শুধুমাত্র রাত ১২টা থেকে ভোর ৬টার মধ্যে ব্যাকআপ আপলোড হবে",
+                title = if (isBn) "বেডটাইম নাইট-উইন্ডো সিঙ্ক (Bedtime Sync: 12 AM – 6 AM)" else "Bedtime Night-Window Sync (12 AM – 6 AM)",
+                subtitle = if (isBn) "চালু থাকলে শুধুমাত্র রাত ১২টা থেকে ভোর ৬টার মধ্যে ব্যাকআপ আপলোড হবে" else "When enabled, backups upload only between 12 AM and 6 AM",
                 checked = prefs.bedtimeSyncEnabled,
                 onChange = { value ->
                     viewModel.update { it.copy(bedtimeSyncEnabled = value) }
@@ -929,9 +962,14 @@ private fun SecuritySection(state: SettingsUiState, viewModel: SettingsViewModel
             )
         }
         add {
+            val isBn = com.novo.drive.presentation.common.isBengaliUi()
             SettingsClickRow(
-                title = "সিকিউরিটি ভল্ট পিন (Vault PIN)",
-                subtitle = if (prefs.vaultPinHash.isNotBlank()) "ভল্ট পিন সক্রিয় রয়েছে • পিন পরিবর্তন করতে ক্লিক করুন" else "কোনো পিন সেট করা নেই • এখনই ৪-ডিজিট পিন সেট করুন",
+                title = if (isBn) "সিকিউরিটি ভল্ট পিন (Vault PIN)" else "Security Vault PIN",
+                subtitle = if (prefs.vaultPinHash.isNotBlank()) {
+                    if (isBn) "ভল্ট পিন সক্রিয় রয়েছে • পিন পরিবর্তন করতে ক্লিক করুন" else "Vault PIN active • Tap to change PIN"
+                } else {
+                    if (isBn) "কোনো পিন সেট করা নেই • এখনই ৪-ডিজিট পিন সেট করুন" else "No PIN set • Tap to set a 4-digit PIN"
+                },
                 onClick = { showVaultSetupDialog = true }
             )
         }
@@ -1038,6 +1076,7 @@ private fun KeyBackupWarning(onSetPassphrase: () -> Unit) {
 private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewModel) {
     val prefs = state.preferences
     val capabilities = LocalPlatformCapabilities.current
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
 
@@ -1045,12 +1084,12 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
         ChoiceDialog(
             title = stringResource(Res.string.settings_theme),
             options = listOf(
-                AppTheme.SYSTEM to "System (সিস্টেম থিম অনুসরণ)",
-                AppTheme.LIGHT to "Clean Light (ক্লিন লাইট থিম)",
-                AppTheme.CYBER_GUARD to "Cyber Guard (নিয়ন শিল্ড থিম)",
-                AppTheme.HUSSUU_CYBER to "Hussuu Cyber (হাই-টেক সাইবার ডেক)",
-                AppTheme.MINIMAL_DRIVE to "Minimal Drive (ক্লিন মিডনাইট)",
-                AppTheme.DONUT_NEON to "Neon Glow (ডোনাট ও নিয়ন থিম)"
+                AppTheme.SYSTEM to if (isBn) "System (সিস্টেম থিম অনুসরণ)" else "System (Follow Device)",
+                AppTheme.LIGHT to if (isBn) "Clean Light (ক্লিন লাইট থিম)" else "Clean Light",
+                AppTheme.CYBER_GUARD to if (isBn) "Cyber Guard (নিয়ন শিল্ড থিম)" else "Cyber Guard (Neon Shield)",
+                AppTheme.HUSSUU_CYBER to if (isBn) "Hussuu Cyber (হাই-টেক সাইবার ডেক)" else "Hussuu Cyber (Cyber Deck)",
+                AppTheme.MINIMAL_DRIVE to if (isBn) "Minimal Drive (ক্লিন মিডনাইট)" else "Minimal Drive (Clean Midnight)",
+                AppTheme.DONUT_NEON to if (isBn) "Neon Glow (ডোনাট ও নিয়ন থিম)" else "Neon Glow (Donut Neon)"
             ),
             selected = prefs.theme,
             onSelect = { choice ->
@@ -1085,13 +1124,13 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
             SettingsClickRow(
                 title = stringResource(Res.string.settings_theme),
                 subtitle = when (prefs.theme) {
-                    AppTheme.SYSTEM -> "System (সিস্টেম থিম অনুসরণ)"
-                    AppTheme.LIGHT -> "Clean Light (ক্লিন লাইট থিম)"
-                    AppTheme.CYBER_GUARD -> "Cyber Guard (নিয়ন শিল্ড থিম)"
-                    AppTheme.HUSSUU_CYBER -> "Hussuu Cyber (হাই-টেক সাইবার ডেক)"
-                    AppTheme.MINIMAL_DRIVE -> "Minimal Drive (ক্লিন মিডনাইট)"
-                    AppTheme.DONUT_NEON -> "Neon Glow (ডোনাট ও নিয়ন থিম)"
-                    AppTheme.DARK -> "Hussuu Cyber (ডার্ক মোড)"
+                    AppTheme.SYSTEM -> if (isBn) "System (সিস্টেম থিম অনুসরণ)" else "System (Follow Device)"
+                    AppTheme.LIGHT -> if (isBn) "Clean Light (ক্লিন লাইট থিম)" else "Clean Light"
+                    AppTheme.CYBER_GUARD -> if (isBn) "Cyber Guard (নিয়ন শিল্ড থিম)" else "Cyber Guard (Neon Shield)"
+                    AppTheme.HUSSUU_CYBER -> if (isBn) "Hussuu Cyber (হাই-টেক সাইবার ডেক)" else "Hussuu Cyber (Cyber Deck)"
+                    AppTheme.MINIMAL_DRIVE -> if (isBn) "Minimal Drive (ক্লিন মিডনাইট)" else "Minimal Drive (Clean Midnight)"
+                    AppTheme.DONUT_NEON -> if (isBn) "Neon Glow (ডোনাট ও নিয়ন থিম)" else "Neon Glow (Donut Neon)"
+                    AppTheme.DARK -> if (isBn) "Hussuu Cyber (ডার্ক মোড)" else "Hussuu Cyber (Dark Mode)"
                 },
                 onClick = { showThemeDialog = true }
             )
@@ -1263,9 +1302,10 @@ private fun AdvancedSection(
     onOpenProxy: () -> Unit
 ) {
     val prefs = state.preferences
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     var showSpeedLimitDialog by remember { mutableStateOf(false) }
     val speedOptions = listOf(
-        0 to "সীমাহীন (Unlimited Speed)",
+        0 to if (isBn) "সীমাহীন (Unlimited Speed)" else "Unlimited Speed",
         1024 to "1 MB/s (Ultra Anti-Ban Safe)",
         2048 to "2 MB/s (Balanced Safe)",
         4096 to "4 MB/s (Fast Safe)"
@@ -1273,7 +1313,7 @@ private fun AdvancedSection(
 
     if (showSpeedLimitDialog) {
         ChoiceDialog(
-            title = "অ্যান্টি-ব্যান সেফ আপলোড স্পিড",
+            title = if (isBn) "অ্যান্টি-ব্যান সেফ আপলোড স্পিড" else "Anti-Ban Safe Upload Speed",
             options = speedOptions,
             selected = prefs.safeUploadSpeedKbps,
             onSelect = { kbps ->
@@ -1294,7 +1334,7 @@ private fun AdvancedSection(
         }
         add {
             SettingsClickRow(
-                title = "অ্যান্টি-ব্যান সেফ আপলোড স্পিড লিমিটার",
+                title = if (isBn) "অ্যান্টি-ব্যান সেফ আপলোড স্পিড লিমিটার" else "Anti-Ban Safe Upload Speed Limiter",
                 subtitle = speedOptions.firstOrNull { it.first == prefs.safeUploadSpeedKbps }?.second
                     ?: "${prefs.safeUploadSpeedKbps} KB/s",
                 onClick = { showSpeedLimitDialog = true }
@@ -1302,8 +1342,8 @@ private fun AdvancedSection(
         }
         add {
             SettingsSwitchRow(
-                title = "অফলাইন OCR ইমেজ টেক্সট সার্চ",
-                subtitle = "১০০% অফলাইনে স্ক্রিনশট, রসিদ ও ডকুমেন্ট ছবির ভেতরের লেখা সার্চযোগ্য রাখুন",
+                title = if (isBn) "অফলাইন OCR ইমেজ টেক্সট সার্চ" else "Offline OCR Image Text Search",
+                subtitle = if (isBn) "১০০% অফলাইনে স্ক্রিনশট, রসিদ ও ডকুমেন্ট ছবির ভেতরের লেখা সার্চযোগ্য রাখুন" else "Keep text inside screenshots, receipts, and documents searchable 100% offline",
                 checked = prefs.ocrIndexingEnabled,
                 onChange = { value ->
                     viewModel.update { it.copy(ocrIndexingEnabled = value) }

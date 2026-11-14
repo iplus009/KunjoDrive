@@ -110,6 +110,7 @@ fun FileInfoSheet(
     var extractingOcr by remember { mutableStateOf(false) }
     var showZipDialog by remember { mutableStateOf(false) }
     var zipStatusMessage by remember { mutableStateOf<String?>(null) }
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
 
     if (showZipDialog) {
         var zipPassword by remember { mutableStateOf("") }
@@ -120,13 +121,17 @@ fun FileInfoSheet(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "এই ফাইলটিকে শক্তিশালী AES-256 পাসওয়ার্ডযুক্ত .zip ফাইলে লক করে যেকোনো অ্যাপে শেয়ার করুন:",
+                        text = if (isBn) {
+                            "এই ফাইলটিকে শক্তিশালী AES-256 পাসওয়ার্ডযুক্ত .zip ফাইলে লক করে যেকোনো অ্যাপে শেয়ার করুন:"
+                        } else {
+                            "Lock this file into an AES-256 password-protected .zip archive to share with any app:"
+                        },
                         style = MaterialTheme.typography.bodySmall
                     )
                     OutlinedTextField(
                         value = zipPassword,
                         onValueChange = { zipPassword = it },
-                        label = { Text("পাসওয়ার্ড দিন") },
+                        label = { Text(if (isBn) "পাসওয়ার্ড দিন" else "Enter password") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
@@ -137,7 +142,11 @@ fun FileInfoSheet(
                 Button(
                     onClick = {
                         val path = file.localPath?.takeIf { File(it).exists() } ?: run {
-                            zipStatusMessage = "লোকাল কপি পাওয়া যায়নি। আগে ফাইলটি ডাউনলোড করুন।"
+                            zipStatusMessage = if (isBn) {
+                                "লোকাল কপি পাওয়া যায়নি। আগে ফাইলটি ডাউনলোড করুন।"
+                            } else {
+                                "Local copy not found. Please download the file first."
+                            }
                             return@Button
                         }
                         creatingZip = true
@@ -158,14 +167,24 @@ fun FileInfoSheet(
                                     chooserTitle = "Share Protected ZIP"
                                 )
                             } else {
-                                zipStatusMessage = "লোকাল কপি পাওয়া যায়নি। আগে ফাইলটি ডাউনলোড করুন।"
+                                zipStatusMessage = if (isBn) {
+                                    "লোকাল কপি পাওয়া যায়নি। আগে ফাইলটি ডাউনলোড করুন।"
+                                } else {
+                                    "Failed to create protected ZIP."
+                                }
                             }
                         }
                     },
                     enabled = !creatingZip && zipPassword.length >= 4,
                     shapes = ButtonDefaults.shapes()
                 ) {
-                    Text(if (creatingZip) "তৈরি হচ্ছে..." else "লক ও শেয়ার করুন")
+                    Text(
+                        if (creatingZip) {
+                            if (isBn) "তৈরি হচ্ছে..." else "Creating..."
+                        } else {
+                            if (isBn) "লক ও শেয়ার করুন" else "Lock & Share"
+                        }
+                    )
                 }
             },
             dismissButton = {
@@ -174,7 +193,7 @@ fun FileInfoSheet(
                     enabled = !creatingZip,
                     shapes = ButtonDefaults.shapes()
                 ) {
-                    Text("বাতিল")
+                    Text(if (isBn) "বাতিল" else "Cancel")
                 }
             }
         )
@@ -229,7 +248,7 @@ fun FileInfoSheet(
                 Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "দেওয়ানগ্রামে পাঠান (Share to DewanGram)",
+                    text = if (isBn) "দেওয়ানগ্রামে পাঠান (Share to DewanGram)" else "Share to DewanGram",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
@@ -305,7 +324,7 @@ fun FileInfoSheet(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "ভার্সন হিস্ট্রি (${versions.size} টি ভার্সন)",
+                        text = if (isBn) "ভার্সন হিস্ট্রি (${versions.size} টি ভার্সন)" else "Version History (${versions.size} versions)",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -313,7 +332,9 @@ fun FileInfoSheet(
                 Spacer(Modifier.height(8.dp))
                 versions.sortedByDescending { it.versionNumber }.forEach { ver ->
                     InfoRow(
-                        label = "v${ver.versionNumber}" + if (ver.id == file.id) " (বর্তমান)" else "",
+                        label = "v${ver.versionNumber}" + if (ver.id == file.id) {
+                            if (isBn) " (বর্তমান)" else " (Current)"
+                        } else "",
                         value = "${Formatters.bytes(ver.sizeBytes)} • ${Formatters.dateTime(ver.addedAt)}"
                     )
                 }
@@ -336,7 +357,7 @@ fun FileInfoSheet(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "অফলাইন OCR টেক্সট",
+                            text = if (isBn) "অফলাইন OCR টেক্সট" else "Offline OCR Text",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -348,7 +369,7 @@ fun FileInfoSheet(
                         ) {
                             Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("কপি")
+                            Text(if (isBn) "কপি" else "Copy")
                         }
                     } else {
                         FilledTonalButton(
@@ -362,7 +383,13 @@ fun FileInfoSheet(
                             enabled = !extractingOcr,
                             shapes = ButtonDefaults.shapes()
                         ) {
-                            Text(if (extractingOcr) "স্ক্যান হচ্ছে..." else "টেক্সট স্ক্যান করুন")
+                            Text(
+                                if (extractingOcr) {
+                                    if (isBn) "স্ক্যান হচ্ছে..." else "Scanning..."
+                                } else {
+                                    if (isBn) "টেক্সট স্ক্যান করুন" else "Scan Text"
+                                }
+                            )
                         }
                     }
                 }
@@ -392,7 +419,13 @@ fun FileInfoSheet(
                 ) {
                     Icon(Icons.Filled.FolderZip, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("পাসওয়ার্ড লকড AES-256 .ZIP শেয়ার করুন")
+                    Text(
+                        if (isBn) {
+                            "পাসওয়ার্ড লকড AES-256 .ZIP শেয়ার করুন"
+                        } else {
+                            "Share Password-Protected AES-256 .ZIP"
+                        }
+                    )
                 }
                 zipStatusMessage?.let { msg ->
                     Spacer(Modifier.height(6.dp))

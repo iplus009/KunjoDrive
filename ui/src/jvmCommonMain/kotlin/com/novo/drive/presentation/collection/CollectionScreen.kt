@@ -185,7 +185,7 @@ fun CollectionScreen(
                             IconButton(onClick = viewModel::transferSelectedToSecondVault) {
                                 Icon(
                                     imageVector = Icons.Filled.Lock,
-                                    contentDescription = "২য় ভল্টে স্থানান্তর করুন",
+                                    contentDescription = if (com.novo.drive.presentation.common.isBengaliUi()) "২য় ভল্টে স্থানান্তর করুন" else "Move to 2nd Vault",
                                     tint = LocalIplusPalette.current.accentSecondary
                                 )
                             }

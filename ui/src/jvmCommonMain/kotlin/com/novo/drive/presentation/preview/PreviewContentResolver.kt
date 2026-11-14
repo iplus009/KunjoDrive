@@ -68,7 +68,11 @@ class PreviewContentResolver(
         ) {
             emit(
                 PreviewContent.PolicyBlocked(
-                    "সাব-অ্যাকাউন্টে সর্বোচ্চ ${prefs.kunjoMaxStreamSizeMb} MB পর্যন্ত স্ট্রিমিং অনুমোদিত। ফাইলটি ডাউনলোড করে দেখুন।"
+                    com.novo.drive.core.common.bi(
+                        "Sub-accounts can stream up to ${prefs.kunjoMaxStreamSizeMb} MB. Download the file to view it.",
+                        "সাব-অ্যাকাউন্টে সর্বোচ্চ ${prefs.kunjoMaxStreamSizeMb} MB পর্যন্ত স্ট্রিমিং অনুমোদিত। ফাইলটি ডাউনলোড করে দেখুন।",
+                        prefs.language
+                    )
                 )
             )
             return@flow

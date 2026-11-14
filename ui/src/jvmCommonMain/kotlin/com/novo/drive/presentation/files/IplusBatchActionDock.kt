@@ -91,7 +91,7 @@ fun IplusBatchActionDock(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "$selectedCount টি ফাইল",
+                            text = if (com.novo.drive.presentation.common.isBengaliUi()) "$selectedCount টি ফাইল" else "$selectedCount selected",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = palette.accentPrimary
@@ -116,27 +116,28 @@ fun IplusBatchActionDock(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    val isBn = com.novo.drive.presentation.common.isBengaliUi()
                     DockActionButton(
                         icon = Icons.Filled.FileDownload,
-                        label = "ডাউনলোড",
+                        label = if (isBn) "ডাউনলোড" else "Download",
                         tint = palette.accentPrimary,
                         onClick = onDownload
                     )
                     DockActionButton(
                         icon = Icons.Filled.DriveFileMove,
-                        label = "মুভ",
+                        label = if (isBn) "মুভ" else "Move",
                         tint = Color.White,
                         onClick = onMove
                     )
                     DockActionButton(
                         icon = Icons.Filled.Lock,
-                        label = "লক জিপ",
+                        label = if (isBn) "লক জিপ" else "Lock ZIP",
                         tint = Color(0xFFFFD54F), // PRESERVED Part 2 Yellow #13
                         onClick = onSecureZip
                     )
                     DockActionButton(
                         icon = Icons.Filled.Delete,
-                        label = "ডিলিট",
+                        label = if (isBn) "ডিলিট" else "Delete",
                         tint = Color(0xFFFF5252),
                         onClick = onDelete
                     )

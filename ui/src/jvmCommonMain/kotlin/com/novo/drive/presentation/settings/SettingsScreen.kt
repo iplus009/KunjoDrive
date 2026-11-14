@@ -298,16 +298,26 @@ fun SettingsScreen(
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (prefs.kunjoUsername.isNotBlank()) "KUNJO ID: @${prefs.kunjoUsername}" else "আমার প্রোফাইল ও ইউজারনেম",
+                        text = if (prefs.kunjoUsername.isNotBlank()) {
+                            "KUNJO ID: @${prefs.kunjoUsername}"
+                        } else {
+                            if (isBn) "আমার প্রোফাইল ও ইউজারনেম" else "My Profile & Username"
+                        },
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = primaryText
                     )
                     Text(
                         text = if (prefs.kunjoUsername.isNotBlank()) {
-                            val accType = if (prefs.kunjoAccountType == "SUB") "👨‍👩‍👧 সাব-অ্যাকাউন্ট" else "👑 মেইন ড্রাইভ"
-                            "$accType · প্রোফাইল ও সেটিংস"
-                        } else "ইউনিক ইউজারনেম ও অ্যাকাউন্ট বিবরণী",
+                            val accType = if (prefs.kunjoAccountType == "SUB") {
+                                if (isBn) "👨‍👩‍👧 সাব-অ্যাকাউন্ট" else "👨‍👩‍👧 Sub-Account"
+                            } else {
+                                if (isBn) "👑 মেইন ড্রাইভ" else "👑 Main Drive"
+                            }
+                            if (isBn) "$accType · প্রোফাইল ও সেটিংস" else "$accType · Profile & Settings"
+                        } else {
+                            if (isBn) "ইউনিক ইউজারনেম ও অ্যাকাউন্ট বিবরণী" else "Unique username & account details"
+                        },
                         fontSize = 11.sp,
                         color = secondaryText
                     )

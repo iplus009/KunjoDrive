@@ -136,6 +136,14 @@ data class FamilyMemberPolicy(
     val allowed_folder: String = "FAMILY"
 )
 
+sealed interface SupabaseRegisterOutcome {
+    data object Success : SupabaseRegisterOutcome
+    data object MissingConfiguration : SupabaseRegisterOutcome
+    data object Conflict : SupabaseRegisterOutcome
+    data class HttpFailure(val code: Int, val detail: String) : SupabaseRegisterOutcome
+    data class NetworkFailure(val message: String) : SupabaseRegisterOutcome
+}
+
 object SupabaseRestClient {
 
     private val BASE_URL get() = Secrets.SUPABASE_URL
@@ -180,8 +188,17 @@ object SupabaseRestClient {
         null
     }
 
-    suspend fun registerUser(user: KunjoUserDto): Boolean = withContext(Dispatchers.IO) {
-        if (!isConfigured) return@withContext false
+    suspend fun registerUser(user: KunjoUserDto): Boolean =
+        registerUserDetailed(user) is SupabaseRegisterOutcome.Success
+
+    internal fun parseRegisterResponse(code: Int, errorBody: String): SupabaseRegisterOutcome = when {
+        code in 200..204 -> SupabaseRegisterOutcome.Success
+        code == 409 -> SupabaseRegisterOutcome.Conflict
+        else -> SupabaseRegisterOutcome.HttpFailure(code, errorBody.take(160))
+    }
+
+    suspend fun registerUserDetailed(user: KunjoUserDto): SupabaseRegisterOutcome = withContext(Dispatchers.IO) {
+        if (!isConfigured) return@withContext SupabaseRegisterOutcome.MissingConfiguration
         var conn: HttpURLConnection? = null
         try {
             conn = openConnection("/kunjo_users", "POST")
@@ -206,9 +223,16 @@ object SupabaseRestClient {
             conn.outputStream.bufferedWriter().use { it.write(payload) }
 
             val code = conn.responseCode
-            (code in 200..204)
-        } catch (_: Throwable) {
-            false
+            val errText = if (code in 200..204 || code == 409) {
+                ""
+            } else {
+                runCatching {
+                    conn.errorStream?.bufferedReader()?.use { it.readText() }
+                }.getOrNull().orEmpty()
+            }
+            parseRegisterResponse(code, errText)
+        } catch (t: Throwable) {
+            SupabaseRegisterOutcome.NetworkFailure(t.message ?: t::class.simpleName.orEmpty())
         } finally {
             conn?.disconnect()
         }

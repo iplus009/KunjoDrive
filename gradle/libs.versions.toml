@@ -8,9 +8,9 @@
 # incrementing by 1 per release regardless of the versionName scheme.
 # APK is named automatically: DewanGram-KunjoDrive-v<appVersion>-<abi>-<buildType>.apk
 #noinspection UnusedVersionCatalogEntry
-appVersion = "1.2.1"
+appVersion = "1.2.2"
 #noinspection UnusedVersionCatalogEntry
-appVersionCode = "89"
+appVersionCode = "90"
 agp = "9.4.1"
 kotlin = "2.4.20"
 ksp = "2.3.11"

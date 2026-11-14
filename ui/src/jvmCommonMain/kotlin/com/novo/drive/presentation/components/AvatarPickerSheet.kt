@@ -52,17 +52,17 @@ data class ChibiItem(
 )
 
 val CHIBI_AVATARS = listOf(
-    ChibiItem("🐱", "Chibi Cat", "মিষ্টি কিউট বিড়াল"),
-    ChibiItem("🐶", "Puppy Dog", "প্লেফুল কুকুরছানা"),
-    ChibiItem("🦊", "Clever Fox", "স্মার্ট ফক্স"),
-    ChibiItem("🐯", "Brave Tiger", "সাহসী চিবী বাঘ"),
-    ChibiItem("🦁", "King Lion", "সিংহ মামা"),
-    ChibiItem("🐵", "Fun Monkey", "চঞ্চল বানর"),
-    ChibiItem("🫏", "Cute Donkey", "মিষ্টি গাধা"),
-    ChibiItem("🐼", "Fluffy Panda", "গোলগাল পান্ডা"),
-    ChibiItem("🦧", "Smart Chimp", "বুদ্ধিমান শিম্পাঞ্জী"),
-    ChibiItem("⚡", "Anime Boy", "সাইবার অ্যানিমে হিরো"),
-    ChibiItem("🌸", "Anime Girl", "কাওয়াই অ্যানিমে প্রিন্সেস")
+    ChibiItem("🐱", "Chibi Cat", "Sweet cute cat"),
+    ChibiItem("🐶", "Puppy Dog", "Playful puppy"),
+    ChibiItem("🦊", "Clever Fox", "Smart clever fox"),
+    ChibiItem("🐯", "Brave Tiger", "Brave chibi tiger"),
+    ChibiItem("🦁", "King Lion", "Mighty lion king"),
+    ChibiItem("🐵", "Fun Monkey", "Playful monkey"),
+    ChibiItem("🫏", "Cute Donkey", "Sweet cute donkey"),
+    ChibiItem("🐼", "Fluffy Panda", "Round fluffy panda"),
+    ChibiItem("🦧", "Smart Chimp", "Intelligent chimp"),
+    ChibiItem("⚡", "Anime Boy", "Cyber anime hero"),
+    ChibiItem("🌸", "Anime Girl", "Kawaii anime princess")
 )
 
 val DEFAULT_EMOJIS = listOf("👤", "✨", "🚀", "🛡️", "💎", "🔥")
@@ -77,6 +77,7 @@ fun AvatarPickerSheet(
     onPickFromGallery: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     var selectedType by remember { mutableStateOf(currentType) }
     var selectedValue by remember { mutableStateOf(currentValue) }
 
@@ -98,7 +99,7 @@ fun AvatarPickerSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "প্রোফাইল অবতার নির্বাচন করুন",
+                    text = if (isBn) "প্রোফাইল অবতার নির্বাচন করুন" else "Choose Profile Avatar",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -136,7 +137,7 @@ fun AvatarPickerSheet(
             ) {
                 Icon(Icons.Default.AddAPhoto, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("📷 Choose from Gallery (গ্যালারি থেকে ছবি)")
+                Text(if (isBn) "📷 Choose from Gallery (গ্যালারি থেকে ছবি)" else "📷 Choose from Gallery")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -150,13 +151,13 @@ fun AvatarPickerSheet(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Text("🔄 ডিফল্ট অ্যাপ লোগোতে ফিরুন")
+                Text(if (isBn) "🔄 ডিফল্ট অ্যাপ লোগোতে ফিরুন" else "🔄 Reset to Default App Logo")
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "১১টি কিউট চিবী ও অ্যানিমে ক্যারেক্টার",
+                text = if (isBn) "১১টি কিউট চিবী ও অ্যানিমে ক্যারেক্টার" else "11 Cute Chibi & Anime Characters",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary
@@ -213,7 +214,7 @@ fun AvatarPickerSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "ডিফল্ট মিনিমালিস্ট অবতার",
+                text = if (isBn) "ডিফল্ট মিনিমালিস্ট অবতার" else "Minimalist Avatars",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.outline

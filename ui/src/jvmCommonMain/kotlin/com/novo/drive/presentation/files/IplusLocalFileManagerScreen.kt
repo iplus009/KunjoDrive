@@ -159,15 +159,16 @@ fun IplusLocalFileManagerScreen(
         }
     }
 
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val primaryRoot = remember(roots) { roots.firstOrNull() ?: File("/") }
-    val standardShortcuts = remember(primaryRoot) {
+    val standardShortcuts = remember(primaryRoot, isBn) {
         listOf(
-            Triple("ডাউনলোড", Icons.Filled.Download, File(primaryRoot, "Download")),
-            Triple("ক্যামেরা", Icons.Filled.PhotoCamera, File(primaryRoot, "DCIM")),
-            Triple("মুভি", Icons.Filled.Movie, File(primaryRoot, "Movies")),
-            Triple("গান", Icons.Filled.MusicNote, File(primaryRoot, "Music")),
-            Triple("ডকুমেন্টস", Icons.Filled.Description, File(primaryRoot, "Documents")),
-            Triple("মূল স্টোরেজ", Icons.Filled.Storage, primaryRoot)
+            Triple(if (isBn) "ডাউনলোড" else "Downloads", Icons.Filled.Download, File(primaryRoot, "Download")),
+            Triple(if (isBn) "ক্যামেরা" else "Camera", Icons.Filled.PhotoCamera, File(primaryRoot, "DCIM")),
+            Triple(if (isBn) "মুভি" else "Movies", Icons.Filled.Movie, File(primaryRoot, "Movies")),
+            Triple(if (isBn) "গান" else "Music", Icons.Filled.MusicNote, File(primaryRoot, "Music")),
+            Triple(if (isBn) "ডকুমেন্টস" else "Documents", Icons.Filled.Description, File(primaryRoot, "Documents")),
+            Triple(if (isBn) "মূল স্টোরেজ" else "Internal Storage", Icons.Filled.Storage, primaryRoot)
         )
     }
 
@@ -196,19 +197,23 @@ fun IplusLocalFileManagerScreen(
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "স্টোরেজ অ্যাক্সেস প্রয়োজন",
+                text = if (isBn) "স্টোরেজ অ্যাক্সেস প্রয়োজন" else "Storage Access Required",
                 style = MaterialTheme.typography.titleLarge,
                 color = primaryText
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "লোকাল ফাইল ম্যানেজার ব্যবহার করতে 'সব ফাইলে অ্যাক্সেস' অনুমতি দিন।",
+                text = if (isBn) {
+                    "লোকাল ফাইল ম্যানেজার ব্যবহার করতে 'সব ফাইলে অ্যাক্সেস' অনুমতি দিন।"
+                } else {
+                    "Grant 'All files access' permission to use the local file manager."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = secondaryText
             )
             Spacer(Modifier.height(24.dp))
             Button(onClick = openStorageSettings) {
-                Text("অনুমতি দিন")
+                Text(if (isBn) "অনুমতি দিন" else "Grant Permission")
             }
         }
         return
@@ -260,12 +265,12 @@ fun IplusLocalFileManagerScreen(
     if (renameTarget != null) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { renameTarget = null },
-            title = { Text("রিনেম করুন", fontWeight = FontWeight.Bold, color = primaryText) },
+            title = { Text(if (isBn) "রিনেম করুন" else "Rename", fontWeight = FontWeight.Bold, color = primaryText) },
             text = {
                 OutlinedTextField(
                     value = renameNewName,
                     onValueChange = { renameNewName = it },
-                    label = { Text("নতুন নাম") },
+                    label = { Text(if (isBn) "নতুন নাম" else "New Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -278,21 +283,25 @@ fun IplusLocalFileManagerScreen(
                         coroutineScope.launch {
                             val ok = LocalFileOperations.rename(target, name)
                             if (ok) {
-                                snackbarHostState.showSnackbar("নাম সফলভাবে পরিবর্তন করা হয়েছে")
+                                snackbarHostState.showSnackbar(
+                                    if (isBn) "নাম সফলভাবে পরিবর্তন করা হয়েছে" else "Renamed successfully"
+                                )
                                 loadFolder(currentDirectory)
                             } else {
-                                snackbarHostState.showSnackbar("রিনেম ব্যর্থ হয়েছে")
+                                snackbarHostState.showSnackbar(
+                                    if (isBn) "রিনেম ব্যর্থ হয়েছে" else "Rename failed"
+                                )
                             }
                         }
                     }
                     renameTarget = null
                 }) {
-                    Text("সংরক্ষণ", fontWeight = FontWeight.Bold, color = palette.accentPrimary)
+                    Text(if (isBn) "সংরক্ষণ" else "Save", fontWeight = FontWeight.Bold, color = palette.accentPrimary)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { renameTarget = null }) {
-                    Text("বাতিল", color = secondaryText)
+                    Text(if (isBn) "বাতিল" else "Cancel", color = secondaryText)
                 }
             }
         )
@@ -301,9 +310,13 @@ fun IplusLocalFileManagerScreen(
     // Delete Confirm Dialog
     if (showDeleteConfirm) {
         ConfirmDialog(
-            title = "মুছে ফেলবেন?",
-            message = "নির্বাচিত ${selectedFiles.size} টি ফাইল/ফোল্ডার স্থায়ীভাবে মুছে ফেলা হবে।",
-            confirmLabel = "মুছে ফেলুন",
+            title = if (isBn) "মুছে ফেলবেন?" else "Delete?",
+            message = if (isBn) {
+                "নির্বাচিত ${selectedFiles.size} টি ফাইল/ফোল্ডার স্থায়ীভাবে মুছে ফেলা হবে।"
+            } else {
+                "${selectedFiles.size} selected file(s)/folder(s) will be permanently deleted."
+            },
+            confirmLabel = if (isBn) "মুছে ফেলুন" else "Delete",
             destructive = true,
             onConfirm = {
                 showDeleteConfirm = false
@@ -314,7 +327,9 @@ fun IplusLocalFileManagerScreen(
                     for (file in toDelete) {
                         if (LocalFileOperations.deleteRecursivelySafe(file)) successCount++
                     }
-                    snackbarHostState.showSnackbar("$successCount টি আইটেম মুছে ফেলা হয়েছে")
+                    snackbarHostState.showSnackbar(
+                        if (isBn) "$successCount টি আইটেম মুছে ফেলা হয়েছে" else "$successCount item(s) deleted"
+                    )
                     loadFolder(currentDirectory)
                 }
             },
@@ -330,14 +345,18 @@ fun IplusLocalFileManagerScreen(
                 title = {
                     Column {
                         Text(
-                            text = if (selectionMode) "${selectedFiles.size} টি নির্বাচিত" else "ডিভাইস ফাইল ম্যানেজার",
+                            text = if (selectionMode) {
+                                if (isBn) "${selectedFiles.size} টি নির্বাচিত" else "${selectedFiles.size} selected"
+                            } else {
+                                if (isBn) "ডিভাইস ফাইল ম্যানেজার" else "Device File Manager"
+                            },
                             fontWeight = FontWeight.Bold,
                             color = primaryText,
                             fontSize = 17.sp
                         )
                         if (!selectionMode) {
                             Text(
-                                text = currentDirectory.name.ifEmpty { "স্টোরেজ" },
+                                text = currentDirectory.name.ifEmpty { if (isBn) "স্টোরেজ" else "Storage" },
                                 fontSize = 11.sp,
                                 color = palette.accentPrimary
                             )
@@ -418,7 +437,7 @@ fun IplusLocalFileManagerScreen(
                             // Cut
                             ActionButton(
                                 icon = Icons.Filled.ContentCut,
-                                label = "কাট",
+                                label = if (isBn) "কাট" else "Cut",
                                 color = palette.accentSecondary,
                                 onClick = {
                                     clipboard = LocalClipboard(ClipboardAction.CUT, selectedFiles.toList())
@@ -429,7 +448,7 @@ fun IplusLocalFileManagerScreen(
                             // Copy
                             ActionButton(
                                 icon = Icons.Filled.ContentCopy,
-                                label = "কপি",
+                                label = if (isBn) "কপি" else "Copy",
                                 color = palette.accentPrimary,
                                 onClick = {
                                     clipboard = LocalClipboard(ClipboardAction.COPY, selectedFiles.toList())
@@ -441,7 +460,7 @@ fun IplusLocalFileManagerScreen(
                             if (selectedFiles.size == 1) {
                                 ActionButton(
                                     icon = Icons.Filled.DriveFileRenameOutline,
-                                    label = "রিনেম",
+                                    label = if (isBn) "রিনেম" else "Rename",
                                     color = Color(0xFF8B5CF6),
                                     onClick = {
                                         val single = selectedFiles.first()
@@ -454,13 +473,16 @@ fun IplusLocalFileManagerScreen(
                             // Upload to Cloud
                             ActionButton(
                                 icon = Icons.Filled.CloudUpload,
-                                label = "ক্লাউড",
+                                label = if (isBn) "ক্লাউড" else "Cloud",
                                 color = Color(0xFF00E676),
                                 onClick = {
                                     coroutineScope.launch {
                                         val prefs = settingsRepository.preferences.first()
                                         if (prefs.kunjoAccountType == "SUB" && !prefs.kunjoCanUpload) {
-                                            snackbarHostState.showSnackbar("সাব-অ্যাকাউন্টে ক্লাউড আপলোডের অনুমতি নেই")
+                                            snackbarHostState.showSnackbar(
+                                                if (isBn) "সাব-অ্যাকাউন্টে ক্লাউড আপলোডের অনুমতি নেই"
+                                                else "Cloud upload is not permitted on sub-accounts"
+                                            )
                                             return@launch
                                         }
                                         val filesToUpload = selectedFiles.filter { !it.isDirectory }
@@ -476,7 +498,10 @@ fun IplusLocalFileManagerScreen(
                                                 count++
                                             }
                                         }
-                                        snackbarHostState.showSnackbar("$count টি ফাইল কুঞ্জ ক্লাউডে ব্যাকআপ নেওয়া শুরু হয়েছে")
+                                        snackbarHostState.showSnackbar(
+                                            if (isBn) "$count টি ফাইল কুঞ্জ ক্লাউডে ব্যাকআপ নেওয়া শুরু হয়েছে"
+                                            else "Started backing up $count file(s) to Kunjo Cloud"
+                                        )
                                     }
                                 }
                             )
@@ -484,7 +509,7 @@ fun IplusLocalFileManagerScreen(
                             // Delete
                             ActionButton(
                                 icon = Icons.Filled.Delete,
-                                label = "মুছুন",
+                                label = if (isBn) "মুছুন" else "Delete",
                                 color = MaterialTheme.colorScheme.error,
                                 onClick = { showDeleteConfirm = true }
                             )
@@ -500,14 +525,18 @@ fun IplusLocalFileManagerScreen(
                                 Icon(Icons.Filled.ContentPaste, contentDescription = null, tint = palette.accentPrimary)
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    text = "${clipboard?.items?.size} টি ফাইল ${if (clipboard?.action == ClipboardAction.CUT) "মুভ" else "কপি"} করতে প্রস্তুত",
+                                    text = if (isBn) {
+                                        "${clipboard?.items?.size} টি ফাইল ${if (clipboard?.action == ClipboardAction.CUT) "মুভ" else "কপি"} করতে প্রস্তুত"
+                                    } else {
+                                        "${clipboard?.items?.size} item(s) ready to ${if (clipboard?.action == ClipboardAction.CUT) "move" else "copy"}"
+                                    },
                                     fontSize = 13.sp,
                                     color = primaryText
                                 )
                             }
                             Row {
                                 TextButton(onClick = { clipboard = null }) {
-                                    Text("বাতিল", color = secondaryText)
+                                    Text(if (isBn) "বাতিল" else "Cancel", color = secondaryText)
                                 }
                                 TextButton(onClick = {
                                     val clip = clipboard ?: return@TextButton
@@ -523,11 +552,18 @@ fun IplusLocalFileManagerScreen(
                                             }
                                             if (ok) success++
                                         }
-                                        snackbarHostState.showSnackbar("$success টি ফাইল সফলভাবে পেস্ট করা হয়েছে")
+                                        snackbarHostState.showSnackbar(
+                                            if (isBn) "$success টি ফাইল সফলভাবে পেস্ট করা হয়েছে"
+                                            else "Pasted $success item(s) successfully"
+                                        )
                                         loadFolder(currentDirectory)
                                     }
                                 }) {
-                                    Text("পেস্ট করুন", fontWeight = FontWeight.Bold, color = palette.accentPrimary)
+                                    Text(
+                                        if (isBn) "পেস্ট করুন" else "Paste",
+                                        fontWeight = FontWeight.Bold,
+                                        color = palette.accentPrimary
+                                    )
                                 }
                             }
                         }
@@ -570,9 +606,21 @@ fun IplusLocalFileManagerScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Filled.Storage, contentDescription = null, tint = palette.accentPrimary, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("ডিভাইস স্টোরেজ · ${(storageFraction * 100).toInt()}% ব্যবহৃত", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = primaryText)
+                                Text(
+                                    if (isBn) "ডিভাইস স্টোরেজ · ${(storageFraction * 100).toInt()}% ব্যবহৃত"
+                                    else "Device Storage · ${(storageFraction * 100).toInt()}% used",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = primaryText
+                                )
                             }
-                            Text("ফাঁকা: ${LocalFileOperations.formatFileSize(freeSpace)}", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = palette.accentSecondary)
+                            Text(
+                                if (isBn) "ফাঁকা: ${LocalFileOperations.formatFileSize(freeSpace)}"
+                                else "Free: ${LocalFileOperations.formatFileSize(freeSpace)}",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = palette.accentSecondary
+                            )
                         }
                         Spacer(Modifier.height(6.dp))
                         LinearProgressIndicator(
@@ -583,7 +631,11 @@ fun IplusLocalFileManagerScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "${LocalFileOperations.formatFileSize(usedSpace)} ব্যবহৃত / সর্বমোট ${LocalFileOperations.formatFileSize(totalSpace)}",
+                            text = if (isBn) {
+                                "${LocalFileOperations.formatFileSize(usedSpace)} ব্যবহৃত / সর্বমোট ${LocalFileOperations.formatFileSize(totalSpace)}"
+                            } else {
+                                "${LocalFileOperations.formatFileSize(usedSpace)} used / ${LocalFileOperations.formatFileSize(totalSpace)} total"
+                            },
                             fontSize = 10.sp,
                             color = secondaryText
                         )
@@ -636,12 +688,12 @@ fun IplusLocalFileManagerScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val filterOptions = listOf(
-                    "ALL" to "সব ফাইল",
-                    "VIDEOS" to "ভিডিও",
-                    "AUDIO" to "অডিও",
-                    "PHOTOS" to "ছবি",
-                    "DOCS" to "ডকুমেন্ট",
-                    "APKS" to "ইনস্টলার/জিপ"
+                    "ALL" to if (isBn) "সব ফাইল" else "All Files",
+                    "VIDEOS" to if (isBn) "ভিডিও" else "Videos",
+                    "AUDIO" to if (isBn) "অডিও" else "Audio",
+                    "PHOTOS" to if (isBn) "ছবি" else "Images",
+                    "DOCS" to if (isBn) "ডকুমেন্ট" else "Docs",
+                    "APKS" to if (isBn) "ইনস্টলার/জিপ" else "Installers/Zip"
                 )
                 filterOptions.forEach { (key, label) ->
                     val isSelected = selectedCategoryFilter == key
@@ -684,9 +736,9 @@ fun IplusLocalFileManagerScreen(
                         Spacer(Modifier.width(4.dp))
                         Text(
                             text = (when (sortBy) {
-                                "DATE" -> "তারিখ"
-                                "SIZE" -> "আকার"
-                                else -> "নাম"
+                                "DATE" -> if (isBn) "তারিখ" else "Date"
+                                "SIZE" -> if (isBn) "আকার" else "Size"
+                                else -> if (isBn) "নাম" else "Name"
                             }) + if (sortAscending) " ↑" else " ↓",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -707,8 +759,8 @@ fun IplusLocalFileManagerScreen(
             if (filteredItems.isEmpty() && !isLoading) {
                 EmptyState(
                     icon = Icons.Filled.Folder,
-                    title = "ফোল্ডারটি ফাঁকা",
-                    description = "এই ডিরেক্টরিতে কোনো ফাইল বা ফোল্ডার পাওয়া যায়নি।",
+                    title = if (isBn) "ফোল্ডারটি ফাঁকা" else "Folder is empty",
+                    description = if (isBn) "এই ডিরেক্টরিতে কোনো ফাইল বা ফোল্ডার পাওয়া যায়নি।" else "No files or folders found in this directory.",
                     modifier = Modifier.fillMaxSize()
                 )
             } else {

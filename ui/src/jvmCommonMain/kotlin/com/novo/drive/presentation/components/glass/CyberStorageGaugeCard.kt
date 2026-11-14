@@ -51,6 +51,7 @@ fun CyberStorageGaugeCard(
 ) {
     val palette = LocalIplusPalette.current
     val isLight = palette.theme == AppTheme.LIGHT
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val primaryText = if (isLight) Color(0xFF0F172A) else Color(0xFFECF6FF)
     val secondaryText = if (isLight) Color(0xFF475569) else Color(0xFF8DA2BA)
 
@@ -151,7 +152,11 @@ fun CyberStorageGaugeCard(
                         text = if (hasQuota) {
                             "Used of ${Formatters.bytes(quotaBytes)} Family Quota • Max 2 GB/file"
                         } else {
-                            "$totalFiles টি ফাইল • সীমাহীন কুঞ্জ ক্লাউড স্টোরেজ"
+                            if (isBn) {
+                                "$totalFiles টি ফাইল • সীমাহীন কুঞ্জ ক্লাউড স্টোরেজ"
+                            } else {
+                                "$totalFiles file(s) • Unlimited Kunjo Cloud Storage"
+                            }
                         },
                         fontSize = 12.sp,
                         color = secondaryText
@@ -251,14 +256,18 @@ fun CyberStorageGaugeCard(
                             Spacer(Modifier.height(4.dp))
 
                             HudTagRow(
-                                label = "মোট ক্লাউড ফাইল",
-                                count = "$totalFiles টি ফাইল",
+                                label = if (isBn) "মোট ক্লাউড ফাইল" else "Total Cloud Files",
+                                count = if (isBn) "$totalFiles টি ফাইল" else "$totalFiles file(s)",
                                 color = palette.accentPrimary,
                                 textColor = primaryText
                             )
                             HudTagRow(
-                                label = "ক্লাউড নিরাপত্তা",
-                                count = if (isEncrypted) "AES-256 লকড" else "কুঞ্জ শিল্ড সক্রিয়",
+                                label = if (isBn) "ক্লাউড নিরাপত্তা" else "Cloud Security",
+                                count = if (isEncrypted) {
+                                    if (isBn) "AES-256 লকড" else "AES-256 Locked"
+                                } else {
+                                    if (isBn) "কুঞ্জ শিল্ড সক্রিয়" else "Kunjo Shield Active"
+                                },
                                 color = palette.accentSecondary,
                                 textColor = primaryText
                             )
@@ -314,6 +323,7 @@ private fun StatusSyncChip(
     accent: Color,
     onSyncClick: () -> Unit
 ) {
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
@@ -334,9 +344,9 @@ private fun StatusSyncChip(
             )
             Text(
                 text = when {
-                    isSyncing -> "সিঙ্ক হচ্ছে..."
-                    isFamilyMember -> "ফ্যামিলি ক্লাউড"
-                    else -> "কুঞ্জ ক্লাউড"
+                    isSyncing -> if (isBn) "সিঙ্ক হচ্ছে..." else "Syncing..."
+                    isFamilyMember -> if (isBn) "ফ্যামিলি ক্লাউড" else "Family Cloud"
+                    else -> if (isBn) "কুঞ্জ ক্লাউড" else "Kunjo Cloud"
                 },
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,

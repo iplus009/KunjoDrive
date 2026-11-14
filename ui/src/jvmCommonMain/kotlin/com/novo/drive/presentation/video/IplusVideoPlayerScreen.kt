@@ -208,12 +208,13 @@ fun IplusVideoPlayerScreen(
     viewModel: IplusVideoPlayerViewModel = koinViewModel()
 ) {
     DedicatedCinemaTheaterTheme {
+        val isBn = com.novo.drive.presentation.common.isBengaliUi()
         val fileOpener = LocalFileOpener.current
 
         var currentTab by remember { mutableStateOf(CinemaSourceTab.LIBRARY) }
         var searchQuery by remember { mutableStateOf("") }
-        var selectedCategory by remember { mutableStateOf("সব ভিডিও") }
-        var downloadsCategory by remember { mutableStateOf("সব ডাউনলোড") }
+        var selectedCategory by remember { mutableStateOf("ALL") }
+        var downloadsCategory by remember { mutableStateOf("ALL") }
         var activeMiniPlayerFile by remember { mutableStateOf<DriveFile?>(null) }
 
         val cloudVideos by viewModel.cloudVideos.collectAsState()
@@ -248,10 +249,10 @@ fun IplusVideoPlayerScreen(
             cloudVideos.filter { video ->
                 val matchesSearch = searchQuery.isBlank() || video.name.contains(searchQuery, ignoreCase = true)
                 val matchesCategory = when (selectedCategory) {
-                    "মুভি" -> video.name.contains("movie", ignoreCase = true) || video.sizeBytes > 700 * 1024 * 1024L
-                    "ওয়েব সিরিজ" -> video.name.contains("s0", ignoreCase = true) || video.name.contains("ep", ignoreCase = true)
-                    "ক্লিপস" -> video.sizeBytes < 150 * 1024 * 1024L
-                    "এইচডি" -> video.name.contains("1080", ignoreCase = true) || video.name.contains("720", ignoreCase = true) || video.name.contains("hd", ignoreCase = true)
+                    "MOVIES" -> video.name.contains("movie", ignoreCase = true) || video.sizeBytes > 700 * 1024 * 1024L
+                    "SERIES" -> video.name.contains("s0", ignoreCase = true) || video.name.contains("ep", ignoreCase = true)
+                    "CLIPS" -> video.sizeBytes < 150 * 1024 * 1024L
+                    "HD" -> video.name.contains("1080", ignoreCase = true) || video.name.contains("720", ignoreCase = true) || video.name.contains("hd", ignoreCase = true)
                     else -> true
                 }
                 matchesSearch && matchesCategory
@@ -275,8 +276,8 @@ fun IplusVideoPlayerScreen(
             }.map { CinemaDownloadItem.Completed(it) }
 
             when (downloadsCategory) {
-                "চলমান" -> activeVideoTasks
-                "সম্পূর্ণ" -> offlineVideos
+                "ACTIVE" -> activeVideoTasks
+                "COMPLETED" -> offlineVideos
                 else -> activeVideoTasks + offlineVideos
             }
         }
@@ -322,13 +323,13 @@ fun IplusVideoPlayerScreen(
                         title = {
                             Column {
                                 Text(
-                                    text = "আইপ্লাস সিনেমা · iPlus CINEMA",
+                                    text = if (isBn) "আইপ্লাস সিনেমা · iPlus CINEMA" else "iPlus CINEMA",
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
                                     fontSize = 17.sp
                                 )
                                 Text(
-                                    text = "২০০% ভলিউম বুস্ট • স্ট্রিমিং ও অফলাইন ডাউনলোড হাব",
+                                    text = if (isBn) "২০০% ভলিউম বুস্ট • স্ট্রিমিং ও অফলাইন ডাউনলোড হাব" else "200% Volume Boost • Streaming & Offline Download Hub",
                                     fontSize = 10.sp,
                                     color = Color(0xFF00E5FF)
                                 )
@@ -363,21 +364,21 @@ fun IplusVideoPlayerScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             CinemaBottomNavTab(
-                                label = "লাইব্রেরি",
+                                label = if (isBn) "লাইব্রেরি" else "Library",
                                 icon = Icons.Filled.Movie,
                                 isSelected = currentTab == CinemaSourceTab.LIBRARY,
                                 accentColor = Color(0xFF00E5FF),
                                 onClick = { currentTab = CinemaSourceTab.LIBRARY }
                             )
                             CinemaBottomNavTab(
-                                label = "ডাউনলোড হাব",
+                                label = if (isBn) "ডাউনলোড হাব" else "Downloads",
                                 icon = Icons.Filled.CloudDownload,
                                 isSelected = currentTab == CinemaSourceTab.DOWNLOADS,
                                 accentColor = Color(0xFF8B5CF6),
                                 onClick = { currentTab = CinemaSourceTab.DOWNLOADS }
                             )
                             CinemaBottomNavTab(
-                                label = "ডিভাইস",
+                                label = if (isBn) "ডিভাইস" else "Device",
                                 icon = Icons.Filled.PhoneAndroid,
                                 isSelected = currentTab == CinemaSourceTab.DEVICE,
                                 accentColor = Color(0xFF00E676),
@@ -405,7 +406,13 @@ fun IplusVideoPlayerScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(52.dp),
-                                    placeholder = { Text("মুভি বা ভিডিও সার্চ করুন...", fontSize = 13.sp, color = Color.White.copy(alpha = 0.5f)) },
+                                    placeholder = {
+                                        Text(
+                                            if (isBn) "মুভি বা ভিডিও সার্চ করুন..." else "Search movies or videos...",
+                                            fontSize = 13.sp,
+                                            color = Color.White.copy(alpha = 0.5f)
+                                        )
+                                    },
                                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Color(0xFF00E5FF)) },
                                     trailingIcon = {
                                         if (searchQuery.isNotEmpty()) {
@@ -427,15 +434,21 @@ fun IplusVideoPlayerScreen(
                                 )
                             }
 
-                            val categories = listOf("সব ভিডিও", "মুভি", "ওয়েব সিরিজ", "ক্লিপস", "এইচডি")
+                            val categories = listOf(
+                                "ALL" to if (isBn) "সব ভিডিও" else "All Videos",
+                                "MOVIES" to if (isBn) "মুভি" else "Movies",
+                                "SERIES" to if (isBn) "ওয়েব সিরিজ" else "Series",
+                                "CLIPS" to if (isBn) "ক্লিপস" else "Clips",
+                                "HD" to if (isBn) "এইচডি" else "HD"
+                            )
                             LazyRow(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 6.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                items(categories) { cat ->
-                                    val isSelected = selectedCategory == cat
+                                items(categories) { (catKey, catLabel) ->
+                                    val isSelected = selectedCategory == catKey
                                     Box(
                                         modifier = Modifier
                                             .heightIn(min = 38.dp)
@@ -446,12 +459,12 @@ fun IplusVideoPlayerScreen(
                                                 color = if (isSelected) Color(0xFF00E5FF) else Color.White.copy(alpha = 0.15f),
                                                 shape = RoundedCornerShape(18.dp)
                                             )
-                                            .clickable { selectedCategory = cat }
+                                            .clickable { selectedCategory = catKey }
                                             .padding(horizontal = 14.dp, vertical = 8.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = cat,
+                                            text = catLabel,
                                             fontSize = 12.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                             color = if (isSelected) Color(0xFF00E5FF) else Color.White.copy(alpha = 0.8f)
@@ -464,8 +477,8 @@ fun IplusVideoPlayerScreen(
                                 if (filteredCloudVideos.isEmpty()) {
                                     EmptyState(
                                         icon = Icons.Filled.Movie,
-                                        title = "কোনো ক্লাউড ভিডিও পাওয়া যায়নি",
-                                        description = "টেলিগ্রাম কুঞ্জ ড্রাইভে ভিডিও আপলোড করলে তা সরাসরি এখানে স্ট্রিমিং ও দেখা যাবে।",
+                                        title = if (isBn) "কোনো ক্লাউড ভিডিও পাওয়া যায়নি" else "No Cloud Videos Found",
+                                        description = if (isBn) "টেলিগ্রাম কুঞ্জ ড্রাইভে ভিডিও আপলোড করলে তা সরাসরি এখানে স্ট্রিমিং ও দেখা যাবে।" else "Upload videos to Kunjo Drive to stream and watch them right here.",
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 } else {
@@ -553,14 +566,14 @@ fun IplusVideoPlayerScreen(
 
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "ডিভাইস স্টোরেজ স্পেস",
+                                            text = if (isBn) "ডিভাইস স্টোরেজ স্পেস" else "Device Storage Space",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 15.sp,
                                             color = Color.White
                                         )
                                         Spacer(Modifier.height(4.dp))
                                         Text(
-                                            text = "$usedStorageGb GB ব্যবহৃত • $freeStorageGb GB অবশিষ্ট",
+                                            text = if (isBn) "$usedStorageGb GB ব্যবহৃত • $freeStorageGb GB অবশিষ্ট" else "$usedStorageGb GB used • $freeStorageGb GB free",
                                             fontSize = 12.sp,
                                             color = Color.White.copy(alpha = 0.70f)
                                         )
@@ -574,7 +587,11 @@ fun IplusVideoPlayerScreen(
                                             )
                                             Spacer(Modifier.width(6.dp))
                                             Text(
-                                                text = "সক্রিয় ডাউনলোড: ${activeDownloads.size} • অফলাইন: ${cloudVideos.count { it.hasLocalCopy }}",
+                                                text = if (isBn) {
+                                                    "সক্রিয় ডাউনলোড: ${activeDownloads.size} • অফলাইন: ${cloudVideos.count { it.hasLocalCopy }}"
+                                                } else {
+                                                    "Active downloads: ${activeDownloads.size} • Offline: ${cloudVideos.count { it.hasLocalCopy }}"
+                                                },
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = Color(0xFF00E676)
@@ -595,7 +612,13 @@ fun IplusVideoPlayerScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(48.dp),
-                                    placeholder = { Text("ডাউনলোড ফাইলে অনুসন্ধান...", fontSize = 12.sp, color = Color.White.copy(alpha = 0.5f)) },
+                                    placeholder = {
+                                        Text(
+                                            if (isBn) "ডাউনলোড ফাইলে অনুসন্ধান..." else "Search downloaded videos...",
+                                            fontSize = 12.sp,
+                                            color = Color.White.copy(alpha = 0.5f)
+                                        )
+                                    },
                                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Color(0xFF8B5CF6)) },
                                     singleLine = true,
                                     shape = RoundedCornerShape(14.dp),
@@ -611,10 +634,14 @@ fun IplusVideoPlayerScreen(
 
                                 Spacer(Modifier.height(6.dp))
 
-                                val downloadChips = listOf("সব ডাউনলোড", "চলমান", "সম্পূর্ণ")
+                                val downloadChips = listOf(
+                                    "ALL" to if (isBn) "সব ডাউনলোড" else "All Downloads",
+                                    "ACTIVE" to if (isBn) "চলমান" else "Active",
+                                    "COMPLETED" to if (isBn) "সম্পূর্ণ" else "Completed"
+                                )
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    items(downloadChips) { chip ->
-                                        val isSelected = downloadsCategory == chip
+                                    items(downloadChips) { (chipKey, chipLabel) ->
+                                        val isSelected = downloadsCategory == chipKey
                                         Box(
                                             modifier = Modifier
                                                 .heightIn(min = 38.dp)
@@ -625,12 +652,12 @@ fun IplusVideoPlayerScreen(
                                                     color = if (isSelected) Color(0xFF8B5CF6) else Color.White.copy(alpha = 0.15f),
                                                     shape = RoundedCornerShape(14.dp)
                                                 )
-                                                .clickable { downloadsCategory = chip }
+                                                .clickable { downloadsCategory = chipKey }
                                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                text = chip,
+                                                text = chipLabel,
                                                 fontSize = 11.sp,
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                                 color = if (isSelected) Color(0xFF8B5CF6) else Color.White.copy(alpha = 0.8f)
@@ -644,8 +671,16 @@ fun IplusVideoPlayerScreen(
                                 if (downloadItems.isEmpty()) {
                                     EmptyState(
                                         icon = Icons.Filled.CloudDownload,
-                                        title = if (downloadsCategory == "চলমান") "কোনো চলমান ডাউনলোড নেই" else "কোনো ডাউনলোডকৃত ভিডিও নেই",
-                                        description = "ক্লাউড লাইব্রেরির যেকোনো ভিডিও অফলাইনে সেভ করলে এখানে অগ্রগতি ও অফলাইন ফাইল দেখতে পাবেন।",
+                                        title = if (downloadsCategory == "ACTIVE") {
+                                            if (isBn) "কোনো চলমান ডাউনলোড নেই" else "No Active Downloads"
+                                        } else {
+                                            if (isBn) "কোনো ডাউনলোডকৃত ভিডিও নেই" else "No Downloaded Videos"
+                                        },
+                                        description = if (isBn) {
+                                            "ক্লাউড লাইব্রেরির যেকোনো ভিডিও অফলাইনে সেভ করলে এখানে অগ্রগতি ও অফলাইন ফাইল দেখতে পাবেন।"
+                                        } else {
+                                            "Save any video from your cloud library for offline playback to track progress and view it here."
+                                        },
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 } else {
@@ -680,8 +715,8 @@ fun IplusVideoPlayerScreen(
                                 if (filteredDeviceVideos.isEmpty()) {
                                     EmptyState(
                                         icon = Icons.Filled.SmartDisplay,
-                                        title = "কোনো ডিভাইস ভিডিও পাওয়া যায়নি",
-                                        description = "ফোনের ক্যামেরা বা মুভি ফোল্ডারে ভিডিও থাকলে তা সরাসরি এখানে দেখা যাবে।",
+                                        title = if (isBn) "কোনো ডিভাইস ভিডিও পাওয়া যায়নি" else "No Device Videos Found",
+                                        description = if (isBn) "ফোনের ক্যামেরা বা মুভি ফোল্ডারে ভিডিও থাকলে তা সরাসরি এখানে দেখা যাবে।" else "Videos in your device's camera or movies folders will appear here automatically.",
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 } else {
@@ -966,6 +1001,7 @@ private fun CinemaCompletedDownloadRow(
     video: DriveFile,
     onOpen: () -> Unit
 ) {
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val shape = RoundedCornerShape(16.dp)
 
     Box(
@@ -1046,7 +1082,7 @@ private fun CinemaCompletedDownloadRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "${Formatters.bytes(video.sizeBytes)} • অফলাইন প্রস্তুত",
+                        text = if (isBn) "${Formatters.bytes(video.sizeBytes)} • অফলাইন প্রস্তুত" else "${Formatters.bytes(video.sizeBytes)} • Offline Ready",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 10.sp,
                         color = Color.White.copy(alpha = 0.70f)
@@ -1175,6 +1211,7 @@ private fun CinemaMiniPlayerBar(
     onExpand: () -> Unit,
     onClose: () -> Unit
 ) {
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val shape = RoundedCornerShape(20.dp)
 
     Box(
@@ -1219,7 +1256,7 @@ private fun CinemaMiniPlayerBar(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "ট্যাপ করে ফুলস্ক্রিনে দেখুন",
+                    text = if (isBn) "ট্যাপ করে ফুলস্ক্রিনে দেখুন" else "Tap to watch fullscreen",
                     fontSize = 10.sp,
                     color = Color(0xFF00E5FF)
                 )

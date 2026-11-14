@@ -3,6 +3,7 @@ package com.novo.drive.presentation.onboarding
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.novo.drive.core.common.AppResult
+import com.novo.drive.core.common.bi
 import com.novo.drive.core.family.FamilyAccessManager
 import com.novo.drive.core.family.NovoFamilyGrantPayload
 import com.novo.drive.core.telegram.CodeDeliveryChannel
@@ -466,21 +467,31 @@ class OnboardingViewModel(
         val state = _uiState.value
         val cleanUser = state.kunjoUsernameInput.trim().lowercase().removePrefix("@")
         if (cleanUser.length < 3) {
-            _uiState.update { it.copy(kunjoAccountError = "ইউজারনেম সর্বনিম্ন ৩ অক্ষরের হতে হবে") }
+            _uiState.update {
+                it.copy(kunjoAccountError = bi("Username must be at least 3 characters.", "ইউজারনেম সর্বনিম্ন ৩ অক্ষরের হতে হবে"))
+            }
             return
         }
         if (!cleanUser.matches(Regex("^[a-z0-9_]{3,20}$"))) {
-            _uiState.update { it.copy(kunjoAccountError = "ইউজারনেম শুধুমাত্র ছোট হাতের ইংরেজি অক্ষর (a-z), সংখ্যা (0-9) এবং _ হতে হবে") }
+            _uiState.update {
+                it.copy(
+                    kunjoAccountError = bi(
+                        "Username can only contain lowercase letters (a-z), numbers (0-9), and _.",
+                        "ইউজারনেম শুধুমাত্র ছোট হাতের ইংরেজি অক্ষর (a-z), সংখ্যা (0-9) এবং _ হতে হবে"
+                    )
+                )
+            }
             return
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isCheckingKunjoUsername = true, kunjoAccountError = null) }
-            val tgUserId = (telegramAuthRepository.getCurrentUser() as? AppResult.Success)?.value?.id
+            val tgUser = (telegramAuthRepository.getCurrentUser() as? AppResult.Success)?.value
             val result = kunjoAuthRepository.registerUsernameOnly(
                 username = cleanUser,
                 storageChannelId = state.selectedChatId,
-                telegramUserId = tgUserId
+                telegramUserId = tgUser?.id,
+                telegramUsername = tgUser?.username
             )
             when (result) {
                 is KunjoAuthResult.Success -> {

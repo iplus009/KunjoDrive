@@ -87,6 +87,7 @@ fun KunjoAuthScreen(
     var passwordVisible by remember { mutableStateOf(false) }
 
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val accentCyan = Color(0xFF00E5FF)
     val luxuryPurple = Color(0xFF8B5CF6)
 
@@ -95,7 +96,11 @@ fun KunjoAuthScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = if (uiState.isRegisterMode) "নতুন অ্যাকাউন্ট তৈরি" else "কুঞ্জ ক্লাউড লগইন",
+                        text = if (uiState.isRegisterMode) {
+                            if (isBn) "নতুন অ্যাকাউন্ট তৈরি" else "Create Account"
+                        } else {
+                            if (isBn) "কুঞ্জ ক্লাউড লগইন" else "Kunjo Cloud Login"
+                        },
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
@@ -201,7 +206,7 @@ fun KunjoAuthScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "লগইন",
+                                text = if (isBn) "লগইন" else "Log In",
                                 fontWeight = if (!uiState.isRegisterMode) FontWeight.Bold else FontWeight.Normal,
                                 color = if (!uiState.isRegisterMode) accentCyan else if (isDark) Color.White else Color.Black,
                                 fontSize = 14.sp
@@ -218,7 +223,7 @@ fun KunjoAuthScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "নতুন একাউন্ট",
+                                text = if (isBn) "নতুন একাউন্ট" else "Create Account",
                                 fontWeight = if (uiState.isRegisterMode) FontWeight.Bold else FontWeight.Normal,
                                 color = if (uiState.isRegisterMode) luxuryPurple else if (isDark) Color.White else Color.Black,
                                 fontSize = 14.sp
@@ -233,7 +238,7 @@ fun KunjoAuthScreen(
                         value = uiState.username,
                         onValueChange = viewModel::onUsernameChange,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("ব্যবহারকারীর নাম (Username)") },
+                        label = { Text(if (isBn) "ব্যবহারকারীর নাম (Username)" else "Username") },
                         leadingIcon = {
                             Icon(Icons.Default.Person, contentDescription = null, tint = accentCyan)
                         },
@@ -253,7 +258,7 @@ fun KunjoAuthScreen(
                         value = uiState.password,
                         onValueChange = viewModel::onPasswordChange,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("মাস্টার পাসওয়ার্ড (Master Password)") },
+                        label = { Text(if (isBn) "মাস্টার পাসওয়ার্ড (Master Password)" else "Master Password") },
                         leadingIcon = {
                             Icon(Icons.Default.Lock, contentDescription = null, tint = accentCyan)
                         },
@@ -290,7 +295,7 @@ fun KunjoAuthScreen(
                     AnimatedVisibility(visible = uiState.isRegisterMode) {
                         Column(modifier = Modifier.fillMaxWidth().padding(top = 14.dp)) {
                             Text(
-                                text = "অ্যাকাউন্টের ধরন নির্বাচন করুন:",
+                                text = if (isBn) "অ্যাকাউন্টের ধরন নির্বাচন করুন:" else "Select Account Type:",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (isDark) Color.LightGray else Color(0xFF475569)
@@ -318,7 +323,7 @@ fun KunjoAuthScreen(
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Icon(Icons.Default.Cloud, contentDescription = null, tint = accentCyan)
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text("👑 মেইন ড্রাইভ", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text(if (isBn) "👑 মেইন ড্রাইভ" else "👑 Main Drive", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
 
@@ -339,7 +344,7 @@ fun KunjoAuthScreen(
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Icon(Icons.Default.FamilyRestroom, contentDescription = null, tint = luxuryPurple)
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text("👨‍👩‍👧 সাব-অ্যাকাউন্ট", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text(if (isBn) "👨‍👩‍👧 সাব-অ্যাকাউন্ট" else "👨‍👩‍👧 Sub-Account", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -350,12 +355,16 @@ fun KunjoAuthScreen(
                                     value = uiState.parentUsername,
                                     onValueChange = viewModel::onParentUsernameChange,
                                     modifier = Modifier.fillMaxWidth(),
-                                    label = { Text("ফ্যামিলি হেডের ইউজারনেম (@ismail)") },
+                                    label = { Text(if (isBn) "ফ্যামিলি হেডের ইউজারনেম (@ismail)" else "Family Head Username (@ismail)") },
                                     singleLine = true,
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 Text(
-                                    text = "💡 সাব-অ্যাকাউন্টে সর্বোচ্চ ৫০০ এমবি স্ট্রিমিং ও ডিলিট লক সক্রিয় থাকবে।",
+                                    text = if (isBn) {
+                                        "💡 সাব-অ্যাকাউন্টে সর্বোচ্চ ৫০০ এমবি স্ট্রিমিং ও ডিলিট লক সক্রিয় থাকবে।"
+                                    } else {
+                                        "💡 Sub-accounts have a 500 MB streaming limit and delete lock enabled."
+                                    },
                                     fontSize = 11.sp,
                                     color = luxuryPurple,
                                     modifier = Modifier.padding(top = 4.dp)
@@ -420,7 +429,11 @@ fun KunjoAuthScreen(
                             )
                         } else {
                             Text(
-                                text = if (uiState.isRegisterMode) "অ্যাকাউন্ট তৈরি সম্পন্ন করুন" else "ড্রাইভ আনলক করুন",
+                                text = if (uiState.isRegisterMode) {
+                                    if (isBn) "অ্যাকাউন্ট তৈরি সম্পন্ন করুন" else "Complete Registration"
+                                } else {
+                                    if (isBn) "ড্রাইভ আনলক করুন" else "Unlock Drive"
+                                },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
@@ -434,7 +447,7 @@ fun KunjoAuthScreen(
                             modifier = Modifier.padding(top = 8.dp)
                         ) {
                             Text(
-                                text = "পাসওয়ার্ড ভুলে গেছেন? (টেলিগ্রাম দিয়ে রিসেট)",
+                                text = if (isBn) "পাসওয়ার্ড ভুলে গেছেন? (টেলিগ্রাম দিয়ে রিসেট)" else "Forgot password? (Reset via Telegram)",
                                 fontSize = 12.sp,
                                 color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
                             )
@@ -464,7 +477,7 @@ fun KunjoAuthScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "📲 সরাসরি ফোন নাম্বার ও টেলিগ্রাম দিয়ে লগইন",
+                    text = if (isBn) "📲 সরাসরি ফোন নাম্বার ও টেলিগ্রাম দিয়ে লগইন" else "📲 Login directly with Phone & Telegram",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = if (isDark) Color.LightGray else Color(0xFF334155)
@@ -478,7 +491,11 @@ fun KunjoAuthScreen(
             onDismissRequest = { viewModel.openForgotPassword(false) },
             title = {
                 Text(
-                    text = if (!uiState.forgotOtpSent) "পাসওয়ার্ড রিসেট (টেলিগ্রাম ওটিপি)" else "টেলিগ্রাম ওটিপি যাচাই ও পাসওয়ার্ড",
+                    text = if (!uiState.forgotOtpSent) {
+                        if (isBn) "পাসওয়ার্ড রিসেট (টেলিগ্রাম ওটিপি)" else "Reset Password (Telegram OTP)"
+                    } else {
+                        if (isBn) "টেলিগ্রাম ওটিপি যাচাই ও পাসওয়ার্ড" else "Verify OTP & New Password"
+                    },
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp
                 )
@@ -487,13 +504,17 @@ fun KunjoAuthScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (!uiState.forgotOtpSent) {
                         Text(
-                            text = "আপনার রেজিস্টার্ড কুঞ্জ ইউজারনেম এবং টেলিগ্রামের ফোন নম্বর দিন:",
+                            text = if (isBn) {
+                                "আপনার রেজিস্টার্ড কুঞ্জ ইউজারনেম এবং টেলিগ্রামের ফোন নম্বর দিন:"
+                            } else {
+                                "Enter your registered Kunjo username and Telegram phone number:"
+                            },
                             fontSize = 13.sp
                         )
                         OutlinedTextField(
                             value = uiState.forgotUsername,
                             onValueChange = viewModel::onForgotUsernameChange,
-                            label = { Text("ইউনিক ইউজারনেম (@username)") },
+                            label = { Text(if (isBn) "ইউনিক ইউজারনেম (@username)" else "Unique Username (@username)") },
                             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = accentCyan) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
@@ -502,7 +523,7 @@ fun KunjoAuthScreen(
                         OutlinedTextField(
                             value = uiState.forgotPhoneNumber,
                             onValueChange = viewModel::onForgotPhoneNumberChange,
-                            label = { Text("টেলিগ্রাম ফোন নম্বর (+8801...)") },
+                            label = { Text(if (isBn) "টেলিগ্রাম ফোন নম্বর (+8801...)" else "Telegram Phone Number (+8801...)") },
                             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = accentCyan) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -511,13 +532,17 @@ fun KunjoAuthScreen(
                         )
                     } else {
                         Text(
-                            text = "আপনার টেলিগ্রাম অ্যাপে একটি ৫-ডিজিটের কোড পাঠানো হয়েছে। কোড এবং নতুন পাসওয়ার্ড প্রদান করুন:",
+                            text = if (isBn) {
+                                "আপনার টেলিগ্রাম অ্যাপে একটি ৫-ডিজিটের কোড পাঠানো হয়েছে। কোড এবং নতুন পাসওয়ার্ড প্রদান করুন:"
+                            } else {
+                                "A 5-digit code was sent to your Telegram app. Enter the code and your new password:"
+                            },
                             fontSize = 13.sp
                         )
                         OutlinedTextField(
                             value = uiState.forgotOtpCode,
                             onValueChange = viewModel::onForgotOtpCodeChange,
-                            label = { Text("৫ ডিজিটের ওটিপি কোড (Telegram Code)") },
+                            label = { Text(if (isBn) "৫ ডিজিটের ওটিপি কোড (Telegram Code)" else "5-Digit Telegram OTP Code") },
                             leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = accentCyan) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -527,7 +552,7 @@ fun KunjoAuthScreen(
                         OutlinedTextField(
                             value = uiState.newPasswordInput,
                             onValueChange = viewModel::onNewPasswordChange,
-                            label = { Text("নতুন মাস্টার পাসওয়ার্ড (সর্বনিম্ন ৬ অক্ষর)") },
+                            label = { Text(if (isBn) "নতুন মাস্টার পাসওয়ার্ড (সর্বনিম্ন ৬ অক্ষর)" else "New Master Password (min 6 chars)") },
                             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = accentCyan) },
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
@@ -538,7 +563,7 @@ fun KunjoAuthScreen(
                             onClick = { viewModel.resendForgotOtp() },
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text("কোড পাননি? পুনরায় পাঠান", fontSize = 12.sp, color = accentCyan)
+                            Text(if (isBn) "কোড পাননি? পুনরায় পাঠান" else "Didn't receive code? Resend", fontSize = 12.sp, color = accentCyan)
                         }
                     }
 
@@ -564,7 +589,7 @@ fun KunjoAuthScreen(
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.Black)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("ওটিপি পাঠান")
+                        Text(if (isBn) "ওটিপি পাঠান" else "Send OTP")
                     }
                 } else {
                     Button(
@@ -577,13 +602,13 @@ fun KunjoAuthScreen(
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.Black)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("যাচাই ও রিসেট করুন")
+                        Text(if (isBn) "যাচাই ও রিসেট করুন" else "Verify & Reset")
                     }
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.openForgotPassword(false) }) {
-                    Text("বাতিল")
+                    Text(if (isBn) "বাতিল" else "Cancel")
                 }
             }
         )

@@ -422,8 +422,8 @@ class SettingsViewModel(
             val current = settingsRepository.preferences.first().kunjoUsername
             val result = if (current.isBlank()) {
                 val chatId = settingsRepository.preferences.first().storageChatId
-                val tgUserId = (telegramAuthRepository.getCurrentUser() as? AppResult.Success)?.value?.id
-                kunjoAuthRepository.registerUsernameOnly(newUsername, chatId, tgUserId)
+                val tgUser = (telegramAuthRepository.getCurrentUser() as? AppResult.Success)?.value
+                kunjoAuthRepository.registerUsernameOnly(newUsername, chatId, tgUser?.id, tgUser?.username)
             } else {
                 kunjoAuthRepository.updateUsername(current, newUsername)
             }

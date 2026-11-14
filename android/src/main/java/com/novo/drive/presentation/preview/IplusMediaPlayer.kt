@@ -576,7 +576,7 @@ fun IplusMediaPlayer(
                 contentColor = ComposeColor(0xFF00E5FF)
             ) {
                 Text(
-                    text = "2X ▶▶ ফাস্ট-ফরোয়ার্ড",
+                    text = if (com.novo.drive.presentation.common.isBengaliUi()) "2X ▶▶ ফাস্ট-ফরোয়ার্ড" else "2X ▶▶ Fast-Forward",
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
                     style = MaterialTheme.typography.titleMedium
@@ -600,7 +600,11 @@ fun IplusMediaPlayer(
                     ?.let { host -> { pipController.enter(host) } },
                 onScreenshot = {
                     captureVideoFrame(playerViewRef, context) { success ->
-                        screenshotNotice = if (success) "📸 ফ্রেম ক্যাপচার সফল! গ্যালারিতে সেভ হয়েছে" else "⚠️ স্ক্রিনশট নেওয়া যায়নি"
+                        screenshotNotice = if (success) {
+                            com.novo.drive.core.common.bi("📸 Frame captured! Saved to Gallery", "📸 ফ্রেম ক্যাপচার সফল! গ্যালারিতে সেভ হয়েছে")
+                        } else {
+                            com.novo.drive.core.common.bi("⚠️ Could not capture screenshot", "⚠️ স্ক্রিনশট নেওয়া যায়নি")
+                        }
                     }
                 },
                 onLock = {

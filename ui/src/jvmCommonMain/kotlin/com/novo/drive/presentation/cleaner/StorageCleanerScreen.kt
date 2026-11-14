@@ -148,7 +148,12 @@ class StorageCleanerViewModel(
                 }
                 when (result) {
                     is AppResult.Success -> _messages.tryEmit(
-                        UiText.Plain("${ids.size} টি ফাইল ট্র্যাশে সরানো হয়েছে (${Formatters.bytes(bytes)} খালি হয়েছে)")
+                        UiText.Plain(
+                            com.novo.drive.core.common.bi(
+                                "${ids.size} files moved to trash (${Formatters.bytes(bytes)} freed)",
+                                "${ids.size} টি ফাইল ট্র্যাশে সরানো হয়েছে (${Formatters.bytes(bytes)} খালি হয়েছে)",
+                            )
+                        )
                     )
                     is AppResult.Failure -> _messages.tryEmit(result.error.toUiText())
                 }
@@ -169,6 +174,7 @@ fun StorageCleanerScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val palette = LocalIplusPalette.current
     val isLight = palette.theme == AppTheme.LIGHT
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val primaryText = if (isLight) Color(0xFF0F172A) else Color.White
     val secondaryText = if (isLight) Color(0xFF475569) else Color.White.copy(alpha = 0.68f)
 
@@ -183,9 +189,13 @@ fun StorageCleanerScreen(
 
     if (confirmCleanAll) {
         ConfirmDialog(
-            title = "সব ডুপ্লিকেট ফাইল পরিষ্কার করবেন?",
-            message = "প্রতিটি গ্রুপের সবচেয়ে পুরনো আসল ফাইলটি রেখে অতিরিক্ত ${state.duplicateExtraFiles.size} টি কপি (${Formatters.bytes(state.duplicateReclaimableBytes)}) ট্র্যাশে সরানো হবে।",
-            confirmLabel = "পরিষ্কার করুন",
+            title = if (isBn) "সব ডুপ্লিকেট ফাইল পরিষ্কার করবেন?" else "Clean all duplicate files?",
+            message = if (isBn) {
+                "প্রতিটি গ্রুপের সবচেয়ে পুরনো আসল ফাইলটি রেখে অতিরিক্ত ${state.duplicateExtraFiles.size} টি কপি (${Formatters.bytes(state.duplicateReclaimableBytes)}) ট্র্যাশে সরানো হবে।"
+            } else {
+                "Keeping the oldest original file in each group, ${state.duplicateExtraFiles.size} extra duplicate(s) (${Formatters.bytes(state.duplicateReclaimableBytes)}) will be moved to trash."
+            },
+            confirmLabel = if (isBn) "পরিষ্কার করুন" else "Clean Up",
             destructive = true,
             onConfirm = {
                 confirmCleanAll = false
@@ -203,7 +213,7 @@ fun StorageCleanerScreen(
                 colors = liftedTopAppBarColors(lifted),
                 title = {
                     Text(
-                        text = "Smart Cleaner (ডুপ্লিকেট ও বড় ফাইল)",
+                        text = if (isBn) "Smart Cleaner (ডুপ্লিকেট ও বড় ফাইল)" else "Smart Cleaner (Duplicates & Large Files)",
                         fontWeight = FontWeight.Bold,
                         color = primaryText
                     )
@@ -247,13 +257,21 @@ fun StorageCleanerScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "ডুপ্লিকেট স্পেস: ${Formatters.bytes(state.duplicateReclaimableBytes)}",
+                                    text = if (isBn) {
+                                        "ডুপ্লিকেট স্পেস: ${Formatters.bytes(state.duplicateReclaimableBytes)}"
+                                    } else {
+                                        "Duplicate Space: ${Formatters.bytes(state.duplicateReclaimableBytes)}"
+                                    },
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = primaryText
                                 )
                                 Text(
-                                    text = "${state.duplicateGroups.size} টি SHA-256 হ্যাশ গ্রুপ • ${state.largestFiles.size} টি বড় ফাইল",
+                                    text = if (isBn) {
+                                        "${state.duplicateGroups.size} টি SHA-256 হ্যাশ গ্রুপ • ${state.largestFiles.size} টি বড় ফাইল"
+                                    } else {
+                                        "${state.duplicateGroups.size} SHA-256 hash group(s) • ${state.largestFiles.size} large file(s)"
+                                    },
                                     fontSize = 12.sp,
                                     color = secondaryText
                                 )
@@ -286,8 +304,12 @@ fun StorageCleanerScreen(
                     item(key = "no-duplicates") {
                         EmptyState(
                             icon = Icons.Filled.CheckCircle,
-                            title = "কোনো ডুপ্লিকেট ফাইল নেই!",
-                            description = "SHA-256 হ্যাশ যাচাইয়ে আপনার ড্রাইভ শতভাগ ডুপ্লিকেটমুক্ত।"
+                            title = if (isBn) "কোনো ডুপ্লিকেট ফাইল নেই!" else "No duplicate files found!",
+                            description = if (isBn) {
+                                "SHA-256 হ্যাশ যাচাইয়ে আপনার ড্রাইভ শতভাগ ডুপ্লিকেটমুক্ত।"
+                            } else {
+                                "Your drive is 100% free of SHA-256 hash duplicates."
+                            }
                         )
                     }
                 } else {
@@ -327,7 +349,11 @@ fun StorageCleanerScreen(
                                             overflow = TextOverflow.Ellipsis
                                         )
                                         Text(
-                                            text = "${sorted.size} টি অভিন্ন কপি • প্রতিটি ${Formatters.bytes(keeper.sizeBytes)}",
+                                            text = if (isBn) {
+                                                "${sorted.size} টি অভিন্ন কপি • প্রতিটি ${Formatters.bytes(keeper.sizeBytes)}"
+                                            } else {
+                                                "${sorted.size} identical copies • ${Formatters.bytes(keeper.sizeBytes)} each"
+                                            },
                                             fontSize = 12.sp,
                                             color = secondaryText
                                         )
@@ -347,8 +373,12 @@ fun StorageCleanerScreen(
                     item(key = "no-large") {
                         EmptyState(
                             icon = Icons.Filled.CleaningServices,
-                            title = "কোনো ফাইল পাওয়া যায়নি",
-                            description = "ড্রাইভে ফাইল যোগ হলে সবচেয়ে বড় ফাইলগুলো এখানে দেখাবে।"
+                            title = if (isBn) "কোনো ফাইল পাওয়া যায়নি" else "No files found",
+                            description = if (isBn) {
+                                "ড্রাইভে ফাইল যোগ হলে সবচেয়ে বড় ফাইলগুলো এখানে দেখাবে।"
+                            } else {
+                                "Your largest files will appear here once files are added to Drive."
+                            }
                         )
                     }
                 } else {

@@ -361,7 +361,15 @@ class GalleryViewModel(
         viewModelScope.launch {
             val prefs = settingsRepository.preferences.first()
             if (prefs.kunjoAccountType == "SUB") {
-                _messages.tryEmit(UiText.Plain("সাব-অ্যাকাউন্টে ফাইল ডিলিট বা ট্র্যাশে পাঠানোর অনুমতি নেই"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "Sub-accounts cannot delete or move files to Trash.",
+                            "সাব-অ্যাকাউন্টে ফাইল ডিলিট বা ট্র্যাশে পাঠানোর অনুমতি নেই",
+                            prefs.language
+                        )
+                    )
+                )
                 return@launch
             }
             trashRepository.moveFilesToTrash(ids).reportFailure()
@@ -382,7 +390,15 @@ class GalleryViewModel(
         viewModelScope.launch {
             val prefs = settingsRepository.preferences.first()
             if (prefs.kunjoAccountType == "SUB" && !prefs.kunjoCanUpload) {
-                _messages.tryEmit(UiText.Plain("সাব-অ্যাকাউন্টে ক্লাউড আপলোডের অনুমতি নেই"))
+                _messages.tryEmit(
+                    UiText.Plain(
+                        com.novo.drive.core.common.bi(
+                            "Cloud uploads are not permitted on a sub-account.",
+                            "সাব-অ্যাকাউন্টে ক্লাউড আপলোডের অনুমতি নেই",
+                            prefs.language,
+                        )
+                    )
+                )
                 return@launch
             }
             ids.forEach { transferRepository.enqueueUpload(it).reportFailure() }

@@ -267,7 +267,13 @@ class FamilyAccessManager(
         val prefs = settingsRepository.preferences.first()
         if (prefs.accountRole != AccountRole.OWNER) {
             return AppResult.Failure(
-                AppError.Unknown("শুধুমাত্র ফ্যামিলি ওনার মেম্বার ডিভাইস অনুমোদন করতে পারবেন।")
+                AppError.Unknown(
+                    com.novo.drive.core.common.bi(
+                        "Only the family owner can approve member devices.",
+                        "শুধুমাত্র ফ্যামিলি ওনার মেম্বার ডিভাইস অনুমোদন করতে পারবেন।",
+                        prefs.language
+                    )
+                )
             )
         }
         val link = tgLoginLink.trim()

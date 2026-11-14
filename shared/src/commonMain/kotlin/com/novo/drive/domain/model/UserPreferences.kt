@@ -60,7 +60,7 @@ data class UserPreferences(
 
     val theme: AppTheme = AppTheme.LIGHT,
     val lastSelectedDarkTheme: AppTheme = AppTheme.CYBER_GUARD,
-    val language: AppLanguage = AppLanguage.SYSTEM,
+    val language: AppLanguage = AppLanguage.ENGLISH,
     val dynamicColor: Boolean = true,
     val viewMode: ViewMode = ViewMode.LIST,
     val gridSize: Int = 3,

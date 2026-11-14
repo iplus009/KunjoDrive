@@ -159,7 +159,7 @@ class IplusPlayerActivity : FragmentActivity() {
         if (resolvedPath != null) {
             return File(resolvedPath).name
         }
-        return "iPlus প্লেয়ার"
+        return com.novo.drive.core.common.bi("Kunjo Player", "কুঞ্জ প্লেয়ার")
     }
 
     private fun resolveIsAudio(path: String?): Boolean {

@@ -241,7 +241,11 @@ class IplusMessageViewModel(
                                 userId = 1000L + slot.slotIndex,
                                 username = "sub_${slot.slotIndex}_${slot.memberName.lowercase().replace(" ", "_")}",
                                 displayName = slot.memberName,
-                                roleBadge = "👨‍👩‍👧 সাব-অ্যাকাউন্ট (স্লট ${slot.slotIndex})",
+                                roleBadge = com.novo.drive.core.common.bi(
+                                    "👨‍👩‍👧 Sub-Account (Slot ${slot.slotIndex})",
+                                    "👨‍👩‍👧 সাব-অ্যাকাউন্ট (স্লট ${slot.slotIndex})",
+                                    prefs.language
+                                ),
                                 avatarEmoji = "👤",
                                 isFamilyMember = true
                             )
@@ -258,8 +262,16 @@ class IplusMessageViewModel(
                         DewanUserSearchResult(
                             userId = 1L,
                             username = "cloud_owner",
-                            displayName = "ক্লাউড ওনার (Main Account)",
-                            roleBadge = "👑 ক্লাউড ওনার (মেইন অ্যাকাউন্ট)",
+                            displayName = com.novo.drive.core.common.bi(
+                                "Cloud Owner (Main Account)",
+                                "ক্লাউড ওনার (Main Account)",
+                                prefs.language
+                            ),
+                            roleBadge = com.novo.drive.core.common.bi(
+                                "👑 Cloud Owner (Main Account)",
+                                "👑 ক্লাউড ওনার (মেইন অ্যাকাউন্ট)",
+                                prefs.language
+                            ),
                             avatarEmoji = "👑",
                             isOwner = true
                         )
@@ -272,14 +284,22 @@ class IplusMessageViewModel(
                 "ismail", "ismail01", "ismaiq01", "dmnur", "nur", "md ismail", "dmnurq01", "ismail2250"
             )
             val queryLower = clean.lowercase()
-            if (ismailAliases.any { queryLower.contains(it) || it.contains(queryLower) } || clean.contains("ইসমাইল", ignoreCase = true)) {
+            if (ismailAliases.any { queryLower.contains(it) || it.contains(queryLower) } || clean.contains("\u0987\u09B8\u09AE\u09BE\u0987\u09B2", ignoreCase = true)) {
                 results.add(
                     0,
                     DewanUserSearchResult(
                         userId = 7777777L,
                         username = "ismail",
-                        displayName = "Md Ismail (ইসমাইল ভাই)",
-                        roleBadge = "👑 অ্যাডমিন / ক্রিয়েটর (Admin / Creator)",
+                        displayName = com.novo.drive.core.common.bi(
+                            "Md Ismail (Ismail Bhai)",
+                            "Md Ismail (ইসমাইল ভাই)",
+                            prefs.language
+                        ),
+                        roleBadge = com.novo.drive.core.common.bi(
+                            "👑 Admin / Creator",
+                            "👑 অ্যাডমিন / ক্রিয়েটর (Admin / Creator)",
+                            prefs.language
+                        ),
                         avatarEmoji = "👑",
                         isFamilyMember = false,
                         isOwner = false,
@@ -298,7 +318,11 @@ class IplusMessageViewModel(
                                 userId = c.userId,
                                 username = c.username,
                                 displayName = c.displayName,
-                                roleBadge = "💬 সংরক্ষিত কন্টাক্ট",
+                                roleBadge = com.novo.drive.core.common.bi(
+                                    "💬 Saved Contact",
+                                    "💬 সংরক্ষিত কন্টাক্ট",
+                                    prefs.language
+                                ),
                                 avatarEmoji = c.avatarValue
                             )
                         )
@@ -329,7 +353,15 @@ class IplusMessageViewModel(
                             userId = resolvedId,
                             username = dg.dewangramUsername,
                             displayName = dg.dewangramUsername,
-                            roleBadge = if (dg.telegramUserId > 0L) "📱 দেওয়ানগ্রাম" else "📱 দেওয়ানগ্রাম (টেলিগ্রাম লিংক নেই)",
+                            roleBadge = if (dg.telegramUserId > 0L) {
+                                com.novo.drive.core.common.bi("📱 DewanGram", "📱 দেওয়ানগ্রাম", prefs.language)
+                            } else {
+                                com.novo.drive.core.common.bi(
+                                    "📱 DewanGram (Telegram Not Linked)",
+                                    "📱 দেওয়ানগ্রাম (টেলিগ্রাম লিংক নেই)",
+                                    prefs.language
+                                )
+                            },
                             avatarEmoji = "📱",
                             telegramUserId = dg.telegramUserId,
                             telegramUsername = dg.telegramUsername
@@ -362,7 +394,13 @@ class IplusMessageViewModel(
                 val isAdmin = activeGroup.adminIds.split(",").filter { it.isNotBlank() }.contains(selfId.toString())
                 val isAllowed = activeGroup.allowedSenderIds.split(",").filter { it.isNotBlank() }.contains(selfId.toString())
                 if (!isOwner && !isAdmin && !isAllowed) {
-                    _statusMessages.tryEmit("⚠️ এই গ্রুপটি Read-Only মোডে আছে।")
+                    _statusMessages.tryEmit(
+                        com.novo.drive.core.common.bi(
+                            "⚠️ This group is in Read-Only mode.",
+                            "⚠️ এই গ্রুপটি Read-Only মোডে আছে।",
+                            prefs.language
+                        )
+                    )
                     return@launch
                 }
             }
@@ -703,7 +741,7 @@ class IplusMessageViewModel(
             val safeMime = (msg.mimeType ?: "application/octet-stream").replace("|", "_")
             "tgremote://$remoteId|$safeName|$safeMime"
         }
-        val displayText = msg.text ?: msg.fileName?.let { "📎 ফাইল: $it" }
+        val displayText = msg.text ?: msg.fileName?.let { com.novo.drive.core.common.bi("📎 File: $it", "📎 ফাইল: $it") }
 
         messageDao.insertMessage(
             IplusMessageEntity(
@@ -731,7 +769,9 @@ class IplusMessageViewModel(
         viewModelScope.launch {
             val link = driveLink.trim()
             if (link.isBlank()) {
-                _statusMessages.tryEmit("⚠️ কোনো বৈধ ফাইল লিংক পাওয়া যায়নি।")
+                _statusMessages.tryEmit(
+                    com.novo.drive.core.common.bi("⚠️ No valid file link found.", "⚠️ কোনো বৈধ ফাইল লিংক পাওয়া যায়নি।")
+                )
                 return@launch
             }
             when {
@@ -739,10 +779,20 @@ class IplusMessageViewModel(
                     val fileId = link.removePrefix("kunjo://file/").substringBefore("|")
                     val existing = runCatching { fileRepository.getFile(fileId) }.getOrNull()
                     if (existing != null) {
-                        _statusMessages.tryEmit("ℹ️ '${existing.name}' ইতিমধ্যেই আপনার ড্রাইভে সংরক্ষিত আছে।")
+                        _statusMessages.tryEmit(
+                            com.novo.drive.core.common.bi(
+                                "ℹ️ '${existing.name}' is already saved in your Drive.",
+                                "ℹ️ '${existing.name}' ইতিমধ্যেই আপনার ড্রাইভে সংরক্ষিত আছে।"
+                            )
+                        )
                         onSaved?.invoke(existing)
                     } else {
-                        _statusMessages.tryEmit("⚠️ ফাইলটি এই ডিভাইসের ড্রাইভে খুঁজে পাওয়া যায়নি।")
+                        _statusMessages.tryEmit(
+                            com.novo.drive.core.common.bi(
+                                "⚠️ File not found on this device's Drive.",
+                                "⚠️ ফাইলটি এই ডিভাইসের ড্রাইভে খুঁজে পাওয়া যায়নি।"
+                            )
+                        )
                     }
                 }
                 link.startsWith("tgremote://") -> {
@@ -750,10 +800,20 @@ class IplusMessageViewModel(
                     val remoteId = parts.getOrNull(0).orEmpty()
                     val fileName = parts.getOrNull(1)?.takeIf { it.isNotBlank() } ?: "DewanGram_File"
                     if (remoteId.isBlank()) {
-                        _statusMessages.tryEmit("⚠️ টেলিগ্রাম ফাইল রেফারেন্স অসম্পূর্ণ।")
+                        _statusMessages.tryEmit(
+                            com.novo.drive.core.common.bi(
+                                "⚠️ Telegram file reference is incomplete.",
+                                "⚠️ টেলিগ্রাম ফাইল রেফারেন্স অসম্পূর্ণ।"
+                            )
+                        )
                         return@launch
                     }
-                    _statusMessages.tryEmit("⬇️ '$fileName' ড্রাইভে ডাউনলোড হচ্ছে...")
+                    _statusMessages.tryEmit(
+                        com.novo.drive.core.common.bi(
+                            "⬇️ Downloading '$fileName' to Drive...",
+                            "⬇️ '$fileName' ড্রাইভে ডাউনলোড হচ্ছে..."
+                        )
+                    )
                     var downloadedPath: String? = null
                     runCatching {
                         telegramClient.downloadDocument(remoteId).collect { event ->
@@ -764,19 +824,34 @@ class IplusMessageViewModel(
                     }
                     val path = downloadedPath
                     if (path == null) {
-                        _statusMessages.tryEmit("⚠️ টেলিগ্রাম থেকে ফাইল ডাউনলোড করা যায়নি।")
+                        _statusMessages.tryEmit(
+                            com.novo.drive.core.common.bi(
+                                "⚠️ Could not download file from Telegram.",
+                                "⚠️ টেলিগ্রাম থেকে ফাইল ডাউনলোড করা যায়নি।"
+                            )
+                        )
                         return@launch
                     }
                     val staged = runCatching { fileImporter.import(path) }.getOrNull()
                     val importPath = staged?.path ?: path
                     when (val res = fileRepository.importLocalFile(importPath, null, fileName)) {
                         is AppResult.Success -> {
-                            _statusMessages.tryEmit("✅ '${res.value.name}' আপনার কুঞ্জ ড্রাইভে সেভ হয়েছে!")
+                            _statusMessages.tryEmit(
+                                com.novo.drive.core.common.bi(
+                                    "✅ '${res.value.name}' saved to your Kunjo Drive!",
+                                    "✅ '${res.value.name}' আপনার কুঞ্জ ড্রাইভে সেভ হয়েছে!"
+                                )
+                            )
                             onSaved?.invoke(res.value)
                         }
                         is AppResult.Failure -> {
                             staged?.let { runCatching { fileImporter.discard(it) } }
-                            _statusMessages.tryEmit("⚠️ ফাইলটি ড্রাইভে সেভ করা যায়নি।")
+                            _statusMessages.tryEmit(
+                                com.novo.drive.core.common.bi(
+                                    "⚠️ Could not save the file to Drive.",
+                                    "⚠️ ফাইলটি ড্রাইভে সেভ করা যায়নি।"
+                                )
+                            )
                         }
                     }
                 }
@@ -786,12 +861,22 @@ class IplusMessageViewModel(
                     val displayName = staged?.name ?: File(link).name.takeIf { it.isNotBlank() } ?: "DewanGram_File"
                     when (val res = fileRepository.importLocalFile(importPath, null, displayName)) {
                         is AppResult.Success -> {
-                            _statusMessages.tryEmit("✅ '${res.value.name}' আপনার কুঞ্জ ড্রাইভে সেভ হয়েছে!")
+                            _statusMessages.tryEmit(
+                                com.novo.drive.core.common.bi(
+                                    "✅ '${res.value.name}' saved to your Kunjo Drive!",
+                                    "✅ '${res.value.name}' আপনার কুঞ্জ ড্রাইভে সেভ হয়েছে!"
+                                )
+                            )
                             onSaved?.invoke(res.value)
                         }
                         is AppResult.Failure -> {
                             staged?.let { runCatching { fileImporter.discard(it) } }
-                            _statusMessages.tryEmit("⚠️ ফাইলটি ড্রাইভে সেভ করা যায়নি।")
+                            _statusMessages.tryEmit(
+                                com.novo.drive.core.common.bi(
+                                    "⚠️ Could not save the file to Drive.",
+                                    "⚠️ ফাইলটি ড্রাইভে সেভ করা যায়নি।"
+                                )
+                            )
                         }
                     }
                 }
@@ -823,8 +908,19 @@ class IplusMessageViewModel(
             messageDao.upsertGroup(group)
             refreshGroupMembers(groupId)
             _statusMessages.tryEmit(
-                if (tgGroup != null) "✅ টেলিগ্রাম গ্রুপ '${group.title}' তৈরি হয়েছে!"
-                else "ℹ️ অফলাইন গ্রুপ '${group.title}' তৈরি হয়েছে (লোকাল মোড)।"
+                if (tgGroup != null) {
+                    com.novo.drive.core.common.bi(
+                        "✅ Telegram group '${group.title}' created!",
+                        "✅ টেলিগ্রাম গ্রুপ '${group.title}' তৈরি হয়েছে!",
+                        prefs.language
+                    )
+                } else {
+                    com.novo.drive.core.common.bi(
+                        "ℹ️ Offline group '${group.title}' created (local mode).",
+                        "ℹ️ অফলাইন গ্রুপ '${group.title}' তৈরি হয়েছে (লোকাল মোড)।",
+                        prefs.language
+                    )
+                }
             )
             onCreated?.invoke(groupId)
         }
@@ -920,7 +1016,7 @@ class IplusMessageViewModel(
                     }
                     merged[m.userId] = GroupMemberItem(
                         userId = m.userId,
-                        name = if (m.userId == selfId && selfId != 0L) "আপনি (You)" else m.displayName,
+                        name = if (m.userId == selfId && selfId != 0L) com.novo.drive.core.common.bi("You", "আপনি (You)", prefs?.language) else m.displayName,
                         username = m.username ?: "user_${m.userId}",
                         role = role,
                         isAllowedSender = allowedSet.contains(m.userId.toString()),
@@ -938,7 +1034,7 @@ class IplusMessageViewModel(
                 }
                 merged[selfId] = GroupMemberItem(
                     userId = selfId,
-                    name = "আপনি (You)",
+                    name = com.novo.drive.core.common.bi("You", "আপনি (You)", prefs?.language),
                     username = prefs?.kunjoUsername?.takeIf { it.isNotBlank() } ?: "me",
                     role = selfRole,
                     isAllowedSender = allowedSet.contains(selfId.toString()),
@@ -994,7 +1090,12 @@ class IplusMessageViewModel(
         viewModelScope.launch {
             val group = messageDao.getGroup(groupId) ?: return@launch
             if (user.userId <= 0L) {
-                _statusMessages.tryEmit("⚠️ এই ব্যবহারকারীর টেলিগ্রাম আইডি যুক্ত নেই, তাই গ্রুপে যোগ করা যাচ্ছে না।")
+                _statusMessages.tryEmit(
+                    com.novo.drive.core.common.bi(
+                        "⚠️ This user has no linked Telegram ID and cannot be added to the group.",
+                        "⚠️ এই ব্যবহারকারীর টেলিগ্রাম আইডি যুক্ত নেই, তাই গ্রুপে যোগ করা যাচ্ছে না।"
+                    )
+                )
                 return@launch
             }
             messageDao.upsertContact(
@@ -1010,7 +1111,12 @@ class IplusMessageViewModel(
                 val added = runCatching { telegramClient.addChatMember(groupId, user.userId) }
                     .getOrDefault(false)
                 if (!added) {
-                    _statusMessages.tryEmit("⚠️ '${user.displayName}' কে টেলিগ্রাম গ্রুপে যোগ করা যায়নি (প্রাইভেসি লিমিট)। ইনভাইট লিংক শেয়ার করুন।")
+                    _statusMessages.tryEmit(
+                        com.novo.drive.core.common.bi(
+                            "⚠️ Could not add '${user.displayName}' to the Telegram group (privacy limit). Share the invite link instead.",
+                            "⚠️ '${user.displayName}' কে টেলিগ্রাম গ্রুপে যোগ করা যায়নি (প্রাইভেসি লিমিট)। ইনভাইট লিংক শেয়ার করুন।"
+                        )
+                    )
                     return@launch
                 }
             } else {
@@ -1031,7 +1137,12 @@ class IplusMessageViewModel(
                 messageDao.upsertGroup(group.copy(memberCount = currentList.size.coerceAtLeast(group.memberCount + 1)))
             }
             refreshGroupMembers(groupId)
-            _statusMessages.tryEmit("✅ '${user.displayName}' গ্রুপে যুক্ত হয়েছেন।")
+            _statusMessages.tryEmit(
+                com.novo.drive.core.common.bi(
+                    "✅ '${user.displayName}' joined the group.",
+                    "✅ '${user.displayName}' গ্রুপে যুক্ত হয়েছেন।"
+                )
+            )
         }
     }
 
@@ -1067,10 +1178,20 @@ class IplusMessageViewModel(
                     )
                 )
                 refreshGroupMembers(tgInfo.chatId)
-                _statusMessages.tryEmit("✅ '${tgInfo.title}' গ্রুপে যুক্ত হয়েছেন!")
+                _statusMessages.tryEmit(
+                    com.novo.drive.core.common.bi(
+                        "✅ Joined '${tgInfo.title}'!",
+                        "✅ '${tgInfo.title}' গ্রুপে যুক্ত হয়েছেন!"
+                    )
+                )
                 onJoined?.invoke(tgInfo.chatId, tgInfo.title)
             } else {
-                _statusMessages.tryEmit("⚠️ গ্রুপ ইনভাইট লিংকটি কার্যকর নয় বা আপনি ইতিমধ্যেই সংযুক্ত নন।")
+                _statusMessages.tryEmit(
+                    com.novo.drive.core.common.bi(
+                        "⚠️ Invite link is invalid or not yet active.",
+                        "⚠️ গ্রুপ ইনভাইট লিংকটি কার্যকর নয় বা আপনি ইতিমধ্যেই সংযুক্ত নন।"
+                    )
+                )
             }
         }
     }
@@ -1078,7 +1199,12 @@ class IplusMessageViewModel(
     suspend fun tryRemoveMember(groupId: Long, requesterId: Long, targetUserId: Long): Boolean {
         val group = messageDao.getGroup(groupId) ?: return false
         if (targetUserId == group.ownerId || requesterId == targetUserId) {
-            _statusMessages.tryEmit("⚠️ গ্রুপ ওনার বা নিজেকে সরানো যাবে না।")
+            _statusMessages.tryEmit(
+                com.novo.drive.core.common.bi(
+                    "⚠️ Cannot remove the group owner or yourself.",
+                    "⚠️ গ্রুপ ওনার বা নিজেকে সরানো যাবে না।"
+                )
+            )
             return false
         }
         val adminList = group.adminIds.split(",").filter { it.isNotBlank() }.toSet()
@@ -1086,11 +1212,21 @@ class IplusMessageViewModel(
         val isRequesterOwner = requesterId == group.ownerId
         val isRequesterAdmin = isRequesterOwner || adminList.contains(requesterId.toString())
         if (!isRequesterAdmin) {
-            _statusMessages.tryEmit("⚠️ সদস্য সরানোর অনুমতি নেই।")
+            _statusMessages.tryEmit(
+                com.novo.drive.core.common.bi(
+                    "⚠️ You don't have permission to remove members.",
+                    "⚠️ সদস্য সরানোর অনুমতি নেই।"
+                )
+            )
             return false
         }
         if (!isRequesterOwner && isTargetAdmin) {
-            _statusMessages.tryEmit("⚠️ অ্যাডমিন অন্য অ্যাডমিনকে রিমুভ করতে পারবে না।")
+            _statusMessages.tryEmit(
+                com.novo.drive.core.common.bi(
+                    "⚠️ Admins cannot remove other admins.",
+                    "⚠️ অ্যাডমিন অন্য অ্যাডমিনকে রিমুভ করতে পারবে না।"
+                )
+            )
             return false
         }
         if (groupId < 0L) {
@@ -1107,7 +1243,12 @@ class IplusMessageViewModel(
             allowedSenderIds = updatedAllowed.joinToString(","),
             memberCount = (group.memberCount - 1).coerceAtLeast(1)
         ))
-        _statusMessages.tryEmit("✅ সদস্যকে গ্রুপ থেকে সরানো হয়েছে।")
+        _statusMessages.tryEmit(
+            com.novo.drive.core.common.bi(
+                "✅ Member removed from the group.",
+                "✅ সদস্যকে গ্রুপ থেকে সরানো হয়েছে।"
+            )
+        )
         return true
     }
 

@@ -123,20 +123,25 @@ fun FolderActionBottomSheet(
                 )
 
                 // Actions List
-                ActionItem(icon = Icons.Filled.Edit, label = "Rename (নাম পরিবর্তন)", onClick = { onDismiss(); onRename() })
-                ActionItem(icon = Icons.Filled.DriveFileMove, label = "Move (স্থানান্তর)", onClick = { onDismiss(); onMove() })
-                ActionItem(icon = Icons.Filled.ContentCopy, label = "Duplicate (কপি তৈরি)", onClick = { onDismiss(); onDuplicate() })
+                val isBn = com.novo.drive.presentation.common.isBengaliUi()
+                ActionItem(icon = Icons.Filled.Edit, label = if (isBn) "Rename (নাম পরিবর্তন)" else "Rename", onClick = { onDismiss(); onRename() })
+                ActionItem(icon = Icons.Filled.DriveFileMove, label = if (isBn) "Move (স্থানান্তর)" else "Move", onClick = { onDismiss(); onMove() })
+                ActionItem(icon = Icons.Filled.ContentCopy, label = if (isBn) "Duplicate (কপি তৈরি)" else "Duplicate", onClick = { onDismiss(); onDuplicate() })
                 ActionItem(
                     icon = if (isArchived) Icons.Filled.Unarchive else Icons.Filled.Archive,
-                    label = if (isArchived) "Unarchive (আর্কাইভ থেকে ফেরান)" else "Archive (আর্কাইভ সংরক্ষণ)",
+                    label = if (isBn) {
+                        if (isArchived) "Unarchive (আর্কাইভ থেকে ফেরান)" else "Archive (আর্কাইভ সংরক্ষণ)"
+                    } else {
+                        if (isArchived) "Unarchive" else "Archive"
+                    },
                     onClick = { onDismiss(); onArchive() }
                 )
-                ActionItem(icon = Icons.Filled.FolderZip, label = "Protected .ZIP Share (পাসওয়ার্ড জিপ শেয়ার)", onClick = { onDismiss(); onShare() })
-                ActionItem(icon = Icons.Filled.Link, label = "Copy Cloud Path (কুঞ্জ ক্লাউড পাথ কপি)", onClick = { onDismiss(); onCopyLink() })
-                ActionItem(icon = Icons.Filled.Info, label = "Detail & Activity (বিস্তারিত তথ্য)", onClick = { onDismiss(); onDetail() })
+                ActionItem(icon = Icons.Filled.FolderZip, label = if (isBn) "Protected .ZIP Share (পাসওয়ার্ড জিপ শেয়ার)" else "Protected .ZIP Share", onClick = { onDismiss(); onShare() })
+                ActionItem(icon = Icons.Filled.Link, label = if (isBn) "Copy Cloud Path (কুঞ্জ ক্লাউড পাথ কপি)" else "Copy Cloud Path", onClick = { onDismiss(); onCopyLink() })
+                ActionItem(icon = Icons.Filled.Info, label = if (isBn) "Detail & Activity (বিস্তারিত তথ্য)" else "Detail & Activity", onClick = { onDismiss(); onDetail() })
                 ActionItem(
                     icon = Icons.Filled.Delete,
-                    label = "Delete (মুছে ফেলুন)",
+                    label = if (isBn) "Delete (মুছে ফেলুন)" else "Delete",
                     isDestructive = true,
                     onClick = { onDismiss(); onDelete() }
                 )

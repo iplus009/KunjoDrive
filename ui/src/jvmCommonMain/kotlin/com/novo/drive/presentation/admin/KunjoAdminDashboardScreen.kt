@@ -69,6 +69,7 @@ fun KunjoAdminDashboardScreen(
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
 
     val accentCyan = Color(0xFF00E5FF)
     val luxuryGold = Color(0xFFFFD54F)
@@ -137,7 +138,7 @@ fun KunjoAdminDashboardScreen(
                 .padding(20.dp)
         ) {
             Text(
-                text = "লাইভ অ্যাকাউন্ট ট্র্যাকিং (Live Accounts)",
+                text = if (isBn) "লাইভ অ্যাকাউন্ট ট্র্যাকিং (Live Accounts)" else "Live Account Tracking",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
@@ -172,12 +173,16 @@ fun KunjoAdminDashboardScreen(
 
                     Column {
                         Text(
-                            text = "মোট ইউনিক অ্যাকাউন্ট",
+                            text = if (isBn) "মোট ইউনিক অ্যাকাউন্ট" else "Total Unique Accounts",
                             fontSize = 13.sp,
                             color = if (isDark) Color.LightGray else Color(0xFF64748B)
                         )
                         Text(
-                            text = if (counts.isUnavailable) "সার্ভার অসংযুক্ত" else "${counts.totalUsers} জন",
+                            text = if (counts.isUnavailable) {
+                                if (isBn) "সার্ভার অসংযুক্ত" else "Server Unavailable"
+                            } else {
+                                if (isBn) "${counts.totalUsers} জন" else "${counts.totalUsers} users"
+                            },
                             fontSize = if (counts.isUnavailable) 20.sp else 32.sp,
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = FontFamily.Monospace,
@@ -185,9 +190,17 @@ fun KunjoAdminDashboardScreen(
                         )
                         Text(
                             text = if (counts.isUnavailable) {
-                                "⚠️ Supabase কনফিগার বা ইন্টারনেট সংযোগ যাচাই করুন"
+                                if (isBn) {
+                                    "⚠️ Supabase কনফিগার বা ইন্টারনেট সংযোগ যাচাই করুন"
+                                } else {
+                                    "⚠️ Check Supabase configuration or internet connection"
+                                }
                             } else {
-                                "✅ লাইভ সার্ভার থেকে প্রাপ্ত (No duplicate devices)"
+                                if (isBn) {
+                                    "✅ লাইভ সার্ভার থেকে প্রাপ্ত (No duplicate devices)"
+                                } else {
+                                    "✅ Synced from live server (No duplicate devices)"
+                                }
                             },
                             fontSize = 11.sp,
                             color = if (counts.isUnavailable) Color(0xFFFFB300) else Color(0xFF00E676)
@@ -206,8 +219,8 @@ fun KunjoAdminDashboardScreen(
                 // Main Accounts
                 TelemetryCard(
                     modifier = Modifier.weight(1f),
-                    title = "👑 মেইন অ্যাকাউন্ট",
-                    subtitle = "ক্লাউড ড্রাইভ হোস্ট",
+                    title = if (isBn) "👑 মেইন অ্যাকাউন্ট" else "👑 Main Accounts",
+                    subtitle = if (isBn) "ক্লাউড ড্রাইভ হোস্ট" else "Cloud Drive Hosts",
                     count = counts.mainUsers,
                     accentColor = luxuryGold,
                     icon = Icons.Default.Person,
@@ -217,8 +230,8 @@ fun KunjoAdminDashboardScreen(
                 // Sub Accounts
                 TelemetryCard(
                     modifier = Modifier.weight(1f),
-                    title = "👨‍👩‍👧 সাব অ্যাকাউন্ট",
-                    subtitle = "ফ্যামিলি মেম্বার",
+                    title = if (isBn) "👨‍👩‍👧 সাব অ্যাকাউন্ট" else "👨‍👩‍👧 Sub Accounts",
+                    subtitle = if (isBn) "ফ্যামিলি মেম্বার" else "Family Members",
                     count = counts.subUsers,
                     accentColor = electricPurple,
                     icon = Icons.Default.FamilyRestroom,
@@ -230,7 +243,7 @@ fun KunjoAdminDashboardScreen(
 
             // Geolocation Section
             Text(
-                text = "জিও-লোকেশন ও টেলিমেট্রি (Live Geolocation)",
+                text = if (isBn) "জিও-লোকেশন ও টেলিমেট্রি (Live Geolocation)" else "Live Geolocation & Telemetry",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
@@ -250,14 +263,18 @@ fun KunjoAdminDashboardScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Public, contentDescription = null, tint = accentCyan, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("টপ কান্ট্রি ও শহর", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(if (isBn) "টপ কান্ট্রি ও শহর" else "Top Countries & Cities", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     if (counts.isUnavailable || topCountries.isEmpty()) {
                         LocationRow(
-                            if (counts.isUnavailable) "ক্লাউড টেলিমেট্রি অনুপলব্ধ (Offline)" else "কোনো জিও-লোকেশন ডেটা নেই",
+                            if (counts.isUnavailable) {
+                                if (isBn) "ক্লাউড টেলিমেট্রি অনুপলব্ধ (Offline)" else "Cloud telemetry unavailable (Offline)"
+                            } else {
+                                if (isBn) "কোনো জিও-লোকেশন ডেটা নেই" else "No geolocation data yet"
+                            },
                             "N/A",
                             isDark
                         )
@@ -284,6 +301,7 @@ private fun TelemetryCard(
     icon: ImageVector,
     isDark: Boolean
 ) {
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     Card(
         modifier = modifier
             .liquidGlass(shape = RoundedCornerShape(18.dp))
@@ -302,7 +320,7 @@ private fun TelemetryCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "$count জন",
+                text = if (isBn) "$count জন" else "$count users",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.ExtraBold,
                 fontFamily = FontFamily.Monospace,

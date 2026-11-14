@@ -120,7 +120,7 @@ class KunjoV402AudioTest {
         assertEquals(AppLanguage.ENGLISH, AppLanguage.fromCode("en"))
         assertEquals(AppLanguage.BENGALI, AppLanguage.fromCode("bn"))
         assertEquals(AppLanguage.SYSTEM, AppLanguage.fromCode("system"))
-        assertEquals(AppLanguage.SYSTEM, AppLanguage.fromCode(null))
+        assertEquals(AppLanguage.ENGLISH, AppLanguage.fromCode(null))
     }
 }
 

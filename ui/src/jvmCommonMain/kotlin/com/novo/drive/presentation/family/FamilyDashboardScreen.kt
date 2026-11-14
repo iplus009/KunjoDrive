@@ -149,7 +149,14 @@ class FamilyDashboardViewModel(
             when (val res = familyAccessManager.createSlotInvite(slotIndex, memberName, quotaGb, expiryDays)) {
                 is AppResult.Success -> {
                     generatedInvite.value = res.value
-                    _messages.tryEmit(UiText.Plain("Slot #$slotIndex এর ফ্যামিলি ইনভাইট ও পিন তৈরি হয়েছে!"))
+                    _messages.tryEmit(
+                        UiText.Plain(
+                            com.novo.drive.core.common.bi(
+                                "Family invite and PIN created for Slot #$slotIndex!",
+                                "Slot #$slotIndex এর ফ্যামিলি ইনভাইট ও পিন তৈরি হয়েছে!",
+                            )
+                        )
+                    )
                 }
                 is AppResult.Failure -> {
                     _messages.tryEmit(res.error.toUiText())
@@ -169,7 +176,14 @@ class FamilyDashboardViewModel(
         viewModelScope.launch {
             when (val res = familyAccessManager.approveMemberDeviceQr(tgLoginLink)) {
                 is AppResult.Success -> {
-                    _messages.tryEmit(UiText.Plain("ফ্যামিলি মেম্বারের ডিভাইস সফলভাবে অনুমোদিত ও লগইন হয়েছে!"))
+                    _messages.tryEmit(
+                        UiText.Plain(
+                            com.novo.drive.core.common.bi(
+                                "Family member device approved and logged in!",
+                                "ফ্যামিলি মেম্বারের ডিভাইস সফলভাবে অনুমোদিত ও লগইন হয়েছে!",
+                            )
+                        )
+                    )
                     onDone()
                 }
                 is AppResult.Failure -> {
@@ -186,7 +200,14 @@ class FamilyDashboardViewModel(
         viewModelScope.launch {
             when (val res = familyAccessManager.revokeSlot(slotIndex, deleteRemoteChannel)) {
                 is AppResult.Success -> {
-                    _messages.tryEmit(UiText.Plain("Slot #$slotIndex এর অ্যাক্সেস বাতিল করা হয়েছে।"))
+                    _messages.tryEmit(
+                        UiText.Plain(
+                            com.novo.drive.core.common.bi(
+                                "Access revoked for Slot #$slotIndex.",
+                                "Slot #$slotIndex এর অ্যাক্সেস বাতিল করা হয়েছে।",
+                            )
+                        )
+                    )
                 }
                 is AppResult.Failure -> {
                     _messages.tryEmit(res.error.toUiText())
@@ -205,6 +226,7 @@ fun FamilyDashboardScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val palette = LocalIplusPalette.current
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val isLight = palette.theme == AppTheme.LIGHT
     val primaryText = if (isLight) Color(0xFF0F172A) else Color.White
     val secondaryText = if (isLight) Color(0xFF475569) else Color.White.copy(alpha = 0.70f)
@@ -227,7 +249,7 @@ fun FamilyDashboardScreen(
                 colors = liftedTopAppBarColors(lifted),
                 title = {
                     Text(
-                        text = "Family Cloud (ফ্যামিলি ক্লাউড)",
+                        text = if (isBn) "Family Cloud (ফ্যামিলি ক্লাউড)" else "Family Cloud",
                         fontWeight = FontWeight.Bold,
                         color = primaryText
                     )
@@ -294,13 +316,21 @@ fun FamilyDashboardScreen(
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Kunjo Family Cloud • $activeCount / $maxMembers সক্রিয়",
+                                    text = if (isBn) {
+                                        "Kunjo Family Cloud • $activeCount / $maxMembers সক্রিয়"
+                                    } else {
+                                        "Kunjo Family Cloud • $activeCount / $maxMembers Active"
+                                    },
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = primaryText
                                 )
                                 Text(
-                                    text = "সর্বোচ্চ ৩ জন সদস্য • ২ জিবি/ফাইল সীমা • ফ্যামিলি ফোনে টেলিগ্রাম অ্যাপ নিষ্প্রয়োজন",
+                                    text = if (isBn) {
+                                        "সর্বোচ্চ ৩ জন সদস্য • ২ জিবি/ফাইল সীমা • ফ্যামিলি ফোনে টেলিগ্রাম অ্যাপ নিষ্প্রয়োজন"
+                                    } else {
+                                        "Up to 3 members • 2 GB/file limit • No Telegram app needed on family phones"
+                                    },
                                     fontSize = 12.sp,
                                     color = secondaryText
                                 )
@@ -318,7 +348,13 @@ fun FamilyDashboardScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text("ধাপ ২: ফ্যামিলি ডিভাইসের সেশন অনুমোদন করুন (Approve Login)")
+                            Text(
+                                if (isBn) {
+                                    "ধাপ ২: ফ্যামিলি ডিভাইসের সেশন অনুমোদন করুন (Approve Login)"
+                                } else {
+                                    "Step 2: Approve Family Device Session"
+                                }
+                            )
                         }
                     }
                 }
@@ -356,13 +392,21 @@ fun FamilyDashboardScreen(
                         )
                         Column {
                             Text(
-                                text = "বিশ্বব্যাপী অটো কিপ-অ্যালাইভ ও আইসোলেটেড চ্যানেল",
+                                text = if (isBn) {
+                                    "বিশ্বব্যাপী অটো কিপ-অ্যালাইভ ও আইসোলেটেড চ্যানেল"
+                                } else {
+                                    "Worldwide Auto Keep-Alive & Isolated Channels"
+                                },
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.sp,
                                 color = primaryText
                             )
                             Text(
-                                text = "প্রতিটি স্লট আলাদা লকড চ্যানেল ও AES-256 সাব-কী ব্যবহার করে। ৭ দিন পর পর অটো হার্টবিট সেশন সচল রাখে।",
+                                text = if (isBn) {
+                                    "প্রতিটি স্লট আলাদা লকড চ্যানেল ও AES-256 সাব-কী ব্যবহার করে। ৭ দিন পর পর অটো হার্টবিট সেশন সচল রাখে।"
+                                } else {
+                                    "Each slot uses a separate locked channel and AES-256 sub-key. Auto heartbeat keeps sessions alive every 7 days."
+                                },
                                 fontSize = 11.sp,
                                 color = secondaryText
                             )
@@ -413,9 +457,13 @@ fun FamilyDashboardScreen(
 
     revokeTargetSlot?.let { slot ->
         ConfirmDialog(
-            title = "Slot #${slot.slotIndex} (${slot.memberName}) বাতিল করবেন?",
-            message = "এই ফ্যামিলি মেম্বারের ইনভাইট ও কোটা অ্যাক্সেস সাথে সাথে নিষ্ক্রিয় হয়ে যাবে। ফাইলগুলো ক্লাউড চ্যানেলে অক্ষত থাকবে।",
-            confirmLabel = "অ্যাক্সেস বাতিল করুন",
+            title = if (isBn) "Slot #${slot.slotIndex} (${slot.memberName}) বাতিল করবেন?" else "Revoke Slot #${slot.slotIndex} (${slot.memberName})?",
+            message = if (isBn) {
+                "এই ফ্যামিলি মেম্বারের ইনভাইট ও কোটা অ্যাক্সেস সাথে সাথে নিষ্ক্রিয় হয়ে যাবে। ফাইলগুলো ক্লাউড চ্যানেলে অক্ষত থাকবে।"
+            } else {
+                "This family member's invite and quota access will be deactivated immediately. Files remain safe in your cloud channel."
+            },
+            confirmLabel = if (isBn) "অ্যাক্সেস বাতিল করুন" else "Revoke Access",
             destructive = true,
             onConfirm = {
                 revokeTargetSlot = null
@@ -433,6 +481,7 @@ private fun FamilyMemberPassView(
     secondaryText: Color
 ) {
     val palette = LocalIplusPalette.current
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
@@ -460,28 +509,48 @@ private fun FamilyMemberPassView(
                         color = primaryText
                     )
                     Text(
-                        text = "Family Slot #${prefs.familySlotIndex} • লকড ফ্যামিলি ভল্ট",
+                        text = if (isBn) {
+                            "Family Slot #${prefs.familySlotIndex} • লকড ফ্যামিলি ভল্ট"
+                        } else {
+                            "Family Slot #${prefs.familySlotIndex} • Locked Family Vault"
+                        },
                         fontSize = 12.sp,
                         color = palette.accentSecondary
                     )
                 }
             }
             Text(
-                text = "বরাদ্দকৃত ক্লাউড কোটা: ${Formatters.bytes(prefs.familyQuotaBytes)}",
+                text = if (isBn) {
+                    "বরাদ্দকৃত ক্লাউড কোটা: ${Formatters.bytes(prefs.familyQuotaBytes)}"
+                } else {
+                    "Allocated Cloud Quota: ${Formatters.bytes(prefs.familyQuotaBytes)}"
+                },
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = primaryText
             )
             Text(
-                text = "সর্বোচ্চ ফাইল আপলোড সীমা: ২ জিবি / ফাইল (Native Shield Enforced)",
+                text = if (isBn) {
+                    "সর্বোচ্চ ফাইল আপলোড সীমা: ২ জিবি / ফাইল (Native Shield Enforced)"
+                } else {
+                    "Max file upload limit: 2 GB / file (Native Shield Enforced)"
+                },
                 fontSize = 13.sp,
                 color = secondaryText
             )
             Text(
                 text = if (prefs.familyExpiresAtMs > 0L) {
-                    "মেয়াদ: ${Formatters.dateTime(prefs.familyExpiresAtMs)} পর্যন্ত"
+                    if (isBn) {
+                        "মেয়াদ: ${Formatters.dateTime(prefs.familyExpiresAtMs)} পর্যন্ত"
+                    } else {
+                        "Expires: ${Formatters.dateTime(prefs.familyExpiresAtMs)}"
+                    }
                 } else {
-                    "মেয়াদ: আজীবন (Lifetime Family Access • Auto Keep-Alive সক্রিয়)"
+                    if (isBn) {
+                        "মেয়াদ: আজীবন (Lifetime Family Access • Auto Keep-Alive সক্রিয়)"
+                    } else {
+                        "Validity: Lifetime Family Access • Auto Keep-Alive Active"
+                    }
                 },
                 fontSize = 13.sp,
                 color = secondaryText
@@ -502,6 +571,7 @@ private fun FamilySlotCard(
     onRevoke: () -> Unit
 ) {
     val palette = LocalIplusPalette.current
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val active = slot != null && !slot.isRevoked && (slot.expiresAtMs <= 0L || nowMs < slot.expiresAtMs)
     val expired = slot != null && !slot.isRevoked && slot.expiresAtMs > 0L && nowMs >= slot.expiresAtMs
 
@@ -542,17 +612,21 @@ private fun FamilySlotCard(
                     Column {
                         Text(
                             text = slot?.memberName?.ifBlank { "Family Slot #$slotIndex" }
-                                ?: "খালি স্লট (Slot #$slotIndex)",
+                                ?: if (isBn) "খালি স্লট (Slot #$slotIndex)" else "Empty Slot #$slotIndex",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = primaryText
                         )
                         Text(
                             text = when {
-                                active -> "সক্রিয় • কোটা ${Formatters.bytes((slot?.quotaBytes ?: 0L))} • ২ জিবি/ফাইল"
-                                expired -> "মেয়াদোত্তীর্ণ (Expired)"
-                                slot?.isRevoked == true -> "বাতিলকৃত (Revoked)"
-                                else -> "নতুন ফ্যামিলি মেম্বার যুক্ত করার জন্য প্রস্তুত"
+                                active -> if (isBn) {
+                                    "সক্রিয় • কোটা ${Formatters.bytes((slot?.quotaBytes ?: 0L))} • ২ জিবি/ফাইল"
+                                } else {
+                                    "Active • Quota ${Formatters.bytes((slot?.quotaBytes ?: 0L))} • 2 GB/file"
+                                }
+                                expired -> if (isBn) "মেয়াদোত্তীর্ণ (Expired)" else "Expired"
+                                slot?.isRevoked == true -> if (isBn) "বাতিলকৃত (Revoked)" else "Revoked"
+                                else -> if (isBn) "নতুন ফ্যামিলি মেম্বার যুক্ত করার জন্য প্রস্তুত" else "Ready to invite a new family member"
                             },
                             fontSize = 12.sp,
                             color = secondaryText
@@ -604,9 +678,10 @@ private fun FamilySlotCard(
                 )
                 Text(
                     text = if (slot.expiresAtMs > 0L) {
-                        "মেয়াদ: ${Formatters.date(slot.expiresAtMs)} পর্যন্ত"
+                        if (isBn) "মেয়াদ: ${Formatters.date(slot.expiresAtMs)} পর্যন্ত"
+                        else "Expires: ${Formatters.date(slot.expiresAtMs)}"
                     } else {
-                        "মেয়াদ: আজীবন (Lifetime)"
+                        if (isBn) "মেয়াদ: আজীবন (Lifetime)" else "Validity: Lifetime"
                     },
                     fontSize = 11.sp,
                     color = secondaryText
@@ -618,7 +693,11 @@ private fun FamilySlotCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 GlassPillButton(
-                    text = if (active) "নতুন ইনভাইট ও পিন" else "ইনভাইট তৈরি করুন",
+                    text = if (active) {
+                        if (isBn) "নতুন ইনভাইট ও পিন" else "New Invite & PIN"
+                    } else {
+                        if (isBn) "ইনভাইট তৈরি করুন" else "Create Invite"
+                    },
                     icon = if (active) Icons.Filled.Refresh else Icons.Filled.Add,
                     isActive = !active,
                     onClick = { if (!working) onInvite() },
@@ -646,6 +725,7 @@ private fun CreateFamilyInviteDialog(
     onDismiss: () -> Unit,
     onConfirm: (name: String, quotaGb: Int, expiryDays: Int) -> Unit
 ) {
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     var name by remember { mutableStateOf(initialName.ifBlank { "Family Member #$slotIndex" }) }
     var quotaGb by remember { mutableIntStateOf(50) }
     var expiryDays by remember { mutableIntStateOf(0) }
@@ -660,7 +740,7 @@ private fun CreateFamilyInviteDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Slot #$slotIndex • ফ্যামিলি ইনভাইট সেটআপ") },
+        title = { Text(if (isBn) "Slot #$slotIndex • ফ্যামিলি ইনভাইট সেটআপ" else "Slot #$slotIndex • Family Invite Setup") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -669,11 +749,14 @@ private fun CreateFamilyInviteDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("সদস্যের নাম (যেমন: Ammu / Spouse)") },
+                    label = { Text(if (isBn) "সদস্যের নাম (যেমন: Ammu / Spouse)" else "Member Name (e.g., Spouse / Mom)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text("ক্লাউড স্টোরেজ কোটা নির্বাচন করুন:", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    if (isBn) "ক্লাউড স্টোরেজ কোটা নির্বাচন করুন:" else "Select Cloud Storage Quota:",
+                    style = MaterialTheme.typography.labelLarge
+                )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     quotaChoices.forEach { gb ->
                         FilterChip(
@@ -683,7 +766,10 @@ private fun CreateFamilyInviteDialog(
                         )
                     }
                 }
-                Text("অ্যাক্সেসের মেয়াদ:", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    if (isBn) "অ্যাক্সেসের মেয়াদ:" else "Access Duration:",
+                    style = MaterialTheme.typography.labelLarge
+                )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     expiryChoices.forEach { (days, label) ->
                         FilterChip(
@@ -694,7 +780,11 @@ private fun CreateFamilyInviteDialog(
                     }
                 }
                 Text(
-                    text = "নোট: প্রতিটি ফাইলের সর্বোচ্চ আকার ২ জিবি (Native C++ Shield দ্বারা লক করা)।",
+                    text = if (isBn) {
+                        "নোট: প্রতিটি ফাইলের সর্বোচ্চ আকার ২ জিবি (Native C++ Shield দ্বারা লক করা)।"
+                    } else {
+                        "Note: Max single file size is 2 GB (enforced by Native C++ Shield)."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -706,12 +796,12 @@ private fun CreateFamilyInviteDialog(
                 enabled = !working && name.isNotBlank(),
                 shapes = ButtonDefaults.shapes()
             ) {
-                Text("QR ও ৬-ডিজিট PIN তৈরি করুন")
+                Text(if (isBn) "QR ও ৬-ডিজিট PIN তৈরি করুন" else "Generate QR & 6-Digit PIN")
             }
         },
         dismissButton = {
             OutlinedButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
-                Text("বাতিল")
+                Text(if (isBn) "বাতিল" else "Cancel")
             }
         }
     )
@@ -724,6 +814,7 @@ private fun GeneratedInviteDialog(
     onDismiss: () -> Unit,
     onOpenApprove: () -> Unit
 ) {
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val clipboard = LocalClipboardManager.current
     var copiedToken by remember { mutableStateOf(false) }
     var copiedBundle by remember { mutableStateOf(false) }
@@ -731,7 +822,7 @@ private fun GeneratedInviteDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("ধাপ ১: ${invite.memberName} (Slot #${invite.slotIndex})") },
+        title = { Text(if (isBn) "ধাপ ১: ${invite.memberName} (Slot #${invite.slotIndex})" else "Step 1: ${invite.memberName} (Slot #${invite.slotIndex})") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -752,14 +843,18 @@ private fun GeneratedInviteDialog(
                     )
                 }
                 Text(
-                    text = "৬-ডিজিট পিন: ${invite.pairingPin}",
+                    text = if (isBn) "৬-ডিজিট পিন: ${invite.pairingPin}" else "6-Digit PIN: ${invite.pairingPin}",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "মেম্বারের ফোনে 'Login with Family'-তে গিয়ে উপরের QR কোডটি স্ক্যান করুন অথবা নিচের বাটন দিয়ে কপি করে পাঠান:",
+                    text = if (isBn) {
+                        "মেম্বারের ফোনে 'Login with Family'-তে গিয়ে উপরের QR কোডটি স্ক্যান করুন অথবা নিচের বাটন দিয়ে কপি করে পাঠান:"
+                    } else {
+                        "On the member's phone, open 'Login with Family' and scan the QR code above, or copy and send the credentials below:"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center
                 )
@@ -776,7 +871,13 @@ private fun GeneratedInviteDialog(
                 ) {
                     Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(if (copiedBundle) "✅ টোকেন ও পিন কপি হয়েছে!" else "১-ক্লিকে টোকেন ও পিন একসাথে কপি করুন")
+                    Text(
+                        if (copiedBundle) {
+                            if (isBn) "✅ টোকেন ও পিন কপি হয়েছে!" else "✅ Token & PIN Copied!"
+                        } else {
+                            if (isBn) "১-ক্লিকে টোকেন ও পিন একসাথে কপি করুন" else "Copy Token & PIN Together"
+                        }
+                    )
                 }
                 OutlinedButton(
                     onClick = {
@@ -786,18 +887,24 @@ private fun GeneratedInviteDialog(
                     shapes = ButtonDefaults.shapes(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(if (copiedToken) "✅ শুধু টোকেন কপি হয়েছে!" else "শুধু টোকেন কপি করুন")
+                    Text(
+                        if (copiedToken) {
+                            if (isBn) "✅ শুধু টোকেন কপি হয়েছে!" else "✅ Token Copied!"
+                        } else {
+                            if (isBn) "শুধু টোকেন কপি করুন" else "Copy Token Only"
+                        }
+                    )
                 }
             }
         },
         confirmButton = {
             Button(onClick = onOpenApprove, shapes = ButtonDefaults.shapes()) {
-                Text("পরবর্তী ধাপ (ধাপ ২: সেশন অনুমোদন) ➔")
+                Text(if (isBn) "পরবর্তী ধাপ (ধাপ ২: সেশন অনুমোদন) ➔" else "Next (Step 2: Approve Session) ➔")
             }
         },
         dismissButton = {
             OutlinedButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
-                Text("বন্ধ করুন")
+                Text(if (isBn) "বন্ধ করুন" else "Close")
             }
         }
     )
@@ -810,6 +917,7 @@ private fun ApproveFamilySessionDialog(
     onDismiss: () -> Unit,
     onApprove: (String) -> Unit
 ) {
+    val isBn = com.novo.drive.presentation.common.isBengaliUi()
     val clipboard = LocalClipboardManager.current
     val filePicker = com.novo.drive.presentation.platform.LocalFilePicker.current
     var link by remember { mutableStateOf("") }
@@ -829,7 +937,11 @@ private fun ApproveFamilySessionDialog(
                     link = extractSessionLink(decoded)
                     qrError = null
                 } else {
-                    qrError = "সেশন QR কোড পড়া যায়নি। আবার চেষ্টা করুন।"
+                    qrError = if (isBn) {
+                        "সেশন QR কোড পড়া যায়নি। আবার চেষ্টা করুন।"
+                    } else {
+                        "Could not read session QR code. Please try again."
+                    }
                 }
             },
             onCancel = { showLiveQrScanner = false }
@@ -839,11 +951,15 @@ private fun ApproveFamilySessionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("ধাপ ২: ফ্যামিলি সেশন অনুমোদন") },
+        title = { Text(if (isBn) "ধাপ ২: ফ্যামিলি সেশন অনুমোদন" else "Step 2: Approve Family Session") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "ফ্যামিলি মেম্বার ধাপ ১ সম্পন্ন করার পর তাঁর স্ক্রিনে যে QR কোড বা সেশন লিংক ('tg://login?token=...') এসেছে, সেটি স্ক্যান বা পেস্ট করুন:",
+                    text = if (isBn) {
+                        "ফ্যামিলি মেম্বার ধাপ ১ সম্পন্ন করার পর তাঁর স্ক্রিনে যে QR কোড বা সেশন লিংক ('tg://login?token=...') এসেছে, সেটি স্ক্যান বা পেস্ট করুন:"
+                    } else {
+                        "After the family member completes Step 1, scan the QR code or paste the session link ('tg://login?token=...') shown on their screen:"
+                    },
                     style = MaterialTheme.typography.bodySmall
                 )
                 Row(
@@ -860,7 +976,7 @@ private fun ApproveFamilySessionDialog(
                     ) {
                         Icon(Icons.Filled.ContentPaste, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("পেস্ট করুন")
+                        Text(if (isBn) "পেস্ট করুন" else "Paste")
                     }
                     FilledTonalButton(
                         onClick = {
@@ -872,21 +988,25 @@ private fun ApproveFamilySessionDialog(
                                     link = extractSessionLink(decoded)
                                     qrError = null
                                 } else {
-                                    qrError = "সেশন QR কোড পড়া যায়নি। স্পষ্ট ছবি দিন।"
+                                    qrError = if (isBn) {
+                                        "সেশন QR কোড পড়া যায়নি। স্পষ্ট ছবি দিন।"
+                                    } else {
+                                        "Could not decode session QR code. Please choose a clearer image."
+                                    }
                                 }
                             }
                         },
                         shapes = ButtonDefaults.shapes(),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("🖼️ ছবি থেকে")
+                        Text(if (isBn) "🖼️ ছবি থেকে" else "🖼️ From Image")
                     }
                     FilledTonalButton(
                         onClick = { showLiveQrScanner = true },
                         shapes = ButtonDefaults.shapes(),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("📷 ক্যামেরা স্ক্যান")
+                        Text(if (isBn) "📷 ক্যামেরা স্ক্যান" else "📷 Camera Scan")
                     }
                 }
                 qrError?.let { msg ->
@@ -899,12 +1019,16 @@ private fun ApproveFamilySessionDialog(
                         val isInviteToken = link.contains("KUNJO-FAM") || link.contains("Family Invite") || link.contains("PIN:")
                         if (isInviteToken) {
                             Text(
-                                text = "⚠️ এটি সদস্যের ইনভাইট টোকেন। সদস্যের স্ক্রিনে আসা 'tg://login?token=...' লিংকটি এখানে দিন।",
+                                text = if (isBn) {
+                                    "⚠️ এটি সদস্যের ইনভাইট টোকেন। সদস্যের স্ক্রিনে আসা 'tg://login?token=...' লিংকটি এখানে দিন।"
+                                } else {
+                                    "⚠️ That is the invite token. Enter the 'tg://login?token=...' link shown on the member's screen."
+                                },
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
                     },
-                    label = { Text("সেশন লিংক (কীবোর্ড দিয়ে পেস্ট করুন)") },
+                    label = { Text(if (isBn) "সেশন লিংক (কীবোর্ড দিয়ে পেস্ট করুন)" else "Session Link (paste here)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -918,12 +1042,12 @@ private fun ApproveFamilySessionDialog(
             ) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("অনুমোদন ও লগইন করান")
+                Text(if (isBn) "অনুমোদন ও লগইন করান" else "Approve & Sign In")
             }
         },
         dismissButton = {
             OutlinedButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
-                Text("বাতিল")
+                Text(if (isBn) "বাতিল" else "Cancel")
             }
         }
     )

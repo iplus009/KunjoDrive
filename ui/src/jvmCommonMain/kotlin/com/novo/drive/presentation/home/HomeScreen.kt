@@ -313,7 +313,9 @@ fun HomeScreen(
             onShare = { zipShareTargetFolder = folder },
             onCopyLink = {
                 clipboard.setText(AnnotatedString("kunjo://drive/folder/${folder.id}/${folder.name}"))
-                viewModel.notifyMessage("'${folder.name}' এর কুঞ্জ ক্লাউড পাথ কপি হয়েছে")
+                viewModel.notifyMessage(
+                    if (isBn) "'${folder.name}' এর কুঞ্জ ক্লাউড পাথ কপি হয়েছে" else "Copied Kunjo cloud path for '${folder.name}'"
+                )
             },
             onDetail = { infoTargetFolder = folder },
             onDelete = { deleteTargetFolder = folder }
@@ -322,9 +324,9 @@ fun HomeScreen(
 
     renameTargetFolder?.let { folder ->
         RenameDialog(
-            title = "ফোল্ডারের নাম পরিবর্তন",
+            title = if (isBn) "ফোল্ডারের নাম পরিবর্তন" else "Rename folder",
             initialValue = folder.name,
-            confirmLabel = "সেভ করুন",
+            confirmLabel = if (isBn) "সেভ করুন" else "Save",
             onConfirm = { newName ->
                 renameTargetFolder = null
                 viewModel.renameFolder(folder.id, newName)
@@ -342,9 +344,13 @@ fun HomeScreen(
 
     deleteTargetFolder?.let { folder ->
         ConfirmDialog(
-            title = "'${folder.name}' মুছে ফেলবেন?",
-            message = "ফোল্ডারটি ট্র্যাশে সরানো হবে। প্রয়োজনে ট্র্যাশ থেকে পুনরুদ্ধার করতে পারবেন।",
-            confirmLabel = "ট্র্যাশে পাঠান",
+            title = if (isBn) "'${folder.name}' মুছে ফেলবেন?" else "Delete '${folder.name}'?",
+            message = if (isBn) {
+                "ফোল্ডারটি ট্র্যাশে সরানো হবে। প্রয়োজনে ট্র্যাশ থেকে পুনরুদ্ধার করতে পারবেন।"
+            } else {
+                "This folder will be moved to trash. You can restore it later if needed."
+            },
+            confirmLabel = if (isBn) "ট্র্যাশে পাঠান" else "Move to Trash",
             destructive = true,
             onConfirm = {
                 deleteTargetFolder = null
@@ -358,17 +364,25 @@ fun HomeScreen(
         var zipPassword by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { zipShareTargetFolder = null },
-            title = { Text("'${folder.name}' • পাসওয়ার্ড লকড .ZIP") },
+            title = {
+                Text(
+                    if (isBn) "'${folder.name}' • পাসওয়ার্ড লকড .ZIP" else "'${folder.name}' • Password-Protected .ZIP"
+                )
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "এই ফোল্ডারের ডাউনলোডকৃত ফাইলগুলোকে AES-256 পাসওয়ার্ডযুক্ত .ZIP বান্ডেলে শেয়ার করুন:",
+                        text = if (isBn) {
+                            "এই ফোল্ডারের ডাউনলোডকৃত ফাইলগুলোকে AES-256 পাসওয়ার্ডযুক্ত .ZIP বান্ডেলে শেয়ার করুন:"
+                        } else {
+                            "Lock downloaded files in this folder into an AES-256 password-protected .ZIP bundle to share:"
+                        },
                         style = MaterialTheme.typography.bodySmall
                     )
                     OutlinedTextField(
                         value = zipPassword,
                         onValueChange = { zipPassword = it },
-                        label = { Text("পাসওয়ার্ড (কমপক্ষে ৪ অক্ষর)") },
+                        label = { Text(if (isBn) "পাসওয়ার্ড (কমপক্ষে ৪ অক্ষর)" else "Password (min 4 characters)") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
@@ -387,13 +401,13 @@ fun HomeScreen(
                     },
                     enabled = zipPassword.length >= 4,
                     shapes = ButtonDefaults.shapes()
-                ) { Text("লক ও শেয়ার") }
+                ) { Text(if (isBn) "লক ও শেয়ার" else "Lock & Share") }
             },
             dismissButton = {
                 OutlinedButton(
                     onClick = { zipShareTargetFolder = null },
                     shapes = ButtonDefaults.shapes()
-                ) { Text("বাতিল") }
+                ) { Text(if (isBn) "বাতিল" else "Cancel") }
             }
         )
     }
@@ -402,12 +416,12 @@ fun HomeScreen(
         var folderName by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showCreateRootFolderDialog = false },
-            title = { Text("নতুন ক্লাউড ফোল্ডার তৈরি") },
+            title = { Text(if (isBn) "নতুন ক্লাউড ফোল্ডার তৈরি" else "Create New Cloud Folder") },
             text = {
                 OutlinedTextField(
                     value = folderName,
                     onValueChange = { folderName = it },
-                    label = { Text("ফোল্ডারের নাম") },
+                    label = { Text(if (isBn) "ফোল্ডারের নাম" else "Folder Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -420,13 +434,13 @@ fun HomeScreen(
                     },
                     enabled = folderName.isNotBlank(),
                     shapes = ButtonDefaults.shapes()
-                ) { Text("তৈরি করুন") }
+                ) { Text(if (isBn) "তৈরি করুন" else "Create") }
             },
             dismissButton = {
                 OutlinedButton(
                     onClick = { showCreateRootFolderDialog = false },
                     shapes = ButtonDefaults.shapes()
-                ) { Text("বাতিল") }
+                ) { Text(if (isBn) "বাতিল" else "Cancel") }
             }
         )
     }
@@ -1211,7 +1225,11 @@ private fun BackupCard(
                         text = when {
                             state.activeBackup?.status == BackupSessionStatus.RUNNING ->
                                 if (state.backupHold == BackupHold.BEDTIME_WINDOW) {
-                                    "রাতের বেডটাইম সিঙ্কের অপেক্ষায় (12 AM – 6 AM)"
+                                    if (com.novo.drive.presentation.common.isBengaliUi()) {
+                                        "রাতের বেডটাইম সিঙ্কের অপেক্ষায় (12 AM – 6 AM)"
+                                    } else {
+                                        "Waiting for bedtime sync window (12 AM – 6 AM)"
+                                    }
                                 } else {
                                     stringResource(
                                         when (state.backupHold) {
@@ -1468,7 +1486,7 @@ private fun LegacyStorageCard(slices: List<StorageSlice>, modifier: Modifier = M
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
-                        text = "আনলিমিটেড ক্লাউড",
+                        text = if (com.novo.drive.presentation.common.isBengaliUi()) "আনলিমিটেড ক্লাউড" else "Unlimited cloud",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -2060,7 +2078,7 @@ private fun FamilyDriveGuideDialog(onDismiss: () -> Unit, onOpenChannels: () -> 
                 onClick = onDismiss,
                 shapes = ButtonDefaults.shapes()
             ) {
-                Text("বন্ধ করুন")
+                Text(if (com.novo.drive.presentation.common.isBengaliUi()) "বন্ধ করুন" else "Close")
             }
         },
         confirmButton = {
@@ -2071,7 +2089,7 @@ private fun FamilyDriveGuideDialog(onDismiss: () -> Unit, onOpenChannels: () -> 
                 },
                 shapes = ButtonDefaults.shapes()
             ) {
-                Text("ড্রাইভ চ্যানেল সেটআপ")
+                Text(if (com.novo.drive.presentation.common.isBengaliUi()) "ড্রাইভ চ্যানেল সেটআপ" else "Setup Drive Channels")
             }
         }
     )
