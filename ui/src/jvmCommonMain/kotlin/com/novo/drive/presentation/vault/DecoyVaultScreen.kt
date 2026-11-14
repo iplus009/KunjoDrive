@@ -157,6 +157,7 @@ fun DecoyVaultScreen(
     val previewSeq = remember {
         PreviewSequence(
             hiddenOnly = true,
+            secondVaultOnly = true,
             sortField = FileSortField.DATE_ADDED,
             sortDirection = SortDirection.DESCENDING
         )

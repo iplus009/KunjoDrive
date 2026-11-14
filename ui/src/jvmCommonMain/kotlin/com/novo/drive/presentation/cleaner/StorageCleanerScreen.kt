@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.novo.drive.core.common.AppResult
 import com.novo.drive.domain.model.AppTheme
 import com.novo.drive.domain.model.DriveFile
 import com.novo.drive.domain.model.FileSortField
@@ -58,6 +59,7 @@ import com.novo.drive.domain.repository.TrashRepository
 import com.novo.drive.presentation.common.CollectSnackbarMessages
 import com.novo.drive.presentation.common.Formatters
 import com.novo.drive.presentation.common.UiText
+import com.novo.drive.presentation.common.toUiText
 import com.novo.drive.presentation.components.BottomBarSnackbarHost
 import com.novo.drive.presentation.components.ConfirmDialog
 import com.novo.drive.presentation.components.EmptyState
@@ -140,13 +142,19 @@ class StorageCleanerViewModel(
     private fun moveIdsToTrash(ids: List<String>, bytes: Long) {
         cleaning.value = true
         viewModelScope.launch {
-            withContext(NonCancellable) {
-                trashRepository.moveFilesToTrash(ids)
+            try {
+                val result = withContext(NonCancellable) {
+                    trashRepository.moveFilesToTrash(ids)
+                }
+                when (result) {
+                    is AppResult.Success -> _messages.tryEmit(
+                        UiText.Plain("${ids.size} টি ফাইল ট্র্যাশে সরানো হয়েছে (${Formatters.bytes(bytes)} খালি হয়েছে)")
+                    )
+                    is AppResult.Failure -> _messages.tryEmit(result.error.toUiText())
+                }
+            } finally {
+                cleaning.value = false
             }
-            cleaning.value = false
-            _messages.tryEmit(
-                UiText.Plain("${ids.size} টি ফাইল ট্র্যাশে সরানো হয়েছে (${Formatters.bytes(bytes)} খালি হয়েছে)")
-            )
         }
     }
 }
@@ -387,7 +395,10 @@ fun StorageCleanerScreen(
                                         color = palette.accentPrimary
                                     )
                                 }
-                                IconButton(onClick = { viewModel.trashSingleFile(file) }) {
+                                IconButton(
+                                    onClick = { viewModel.trashSingleFile(file) },
+                                    enabled = !state.cleaning
+                                ) {
                                     Icon(
                                         imageVector = Icons.Filled.DeleteOutline,
                                         contentDescription = "Move to Trash",

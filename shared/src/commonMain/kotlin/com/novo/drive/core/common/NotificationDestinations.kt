@@ -5,4 +5,5 @@ object NotificationDestinations {
     const val FILES = "files"
     const val NOTE = "note"
     const val UPDATE = "update"
+    const val DEWAN_JOIN_PREFIX = "dewan_join:"
 }

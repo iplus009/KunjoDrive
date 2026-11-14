@@ -52,6 +52,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.novo.drive.core.network.CountryCount
 import com.novo.drive.core.network.SupabaseRestClient
 import com.novo.drive.core.network.UserCountSummary
 import com.novo.drive.presentation.components.glass.liquidGlass
@@ -63,7 +64,8 @@ import kotlinx.coroutines.launch
 fun KunjoAdminDashboardScreen(
     onBack: () -> Unit
 ) {
-    var counts by remember { mutableStateOf(UserCountSummary(1, 1, 0)) }
+    var counts by remember { mutableStateOf(UserCountSummary(0, 0, 0, isUnavailable = true)) }
+    var topCountries by remember { mutableStateOf<List<CountryCount>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
@@ -76,6 +78,7 @@ fun KunjoAdminDashboardScreen(
         scope.launch {
             isLoading = true
             counts = SupabaseRestClient.fetchUserCounts()
+            topCountries = SupabaseRestClient.fetchTopCountries()
             isLoading = false
         }
     }
@@ -174,16 +177,20 @@ fun KunjoAdminDashboardScreen(
                             color = if (isDark) Color.LightGray else Color(0xFF64748B)
                         )
                         Text(
-                            text = "${counts.totalUsers} জন",
-                            fontSize = 32.sp,
+                            text = if (counts.isUnavailable) "সার্ভার অসংযুক্ত" else "${counts.totalUsers} জন",
+                            fontSize = if (counts.isUnavailable) 20.sp else 32.sp,
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = FontFamily.Monospace,
                             color = if (isDark) Color.White else Color.Black
                         )
                         Text(
-                            text = "✅ ডাবল কাউন্ট রোধ সক্রিয় (No duplicate devices)",
+                            text = if (counts.isUnavailable) {
+                                "⚠️ Supabase কনফিগার বা ইন্টারনেট সংযোগ যাচাই করুন"
+                            } else {
+                                "✅ লাইভ সার্ভার থেকে প্রাপ্ত (No duplicate devices)"
+                            },
                             fontSize = 11.sp,
-                            color = Color(0xFF00E676)
+                            color = if (counts.isUnavailable) Color(0xFFFFB300) else Color(0xFF00E676)
                         )
                     }
                 }
@@ -248,8 +255,19 @@ fun KunjoAdminDashboardScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    LocationRow("🇧🇩 বাংলাদেশ (Dhaka, Chittagong, Sylhet)", "৮৫%", isDark)
-                    LocationRow("🌍 অন্যান্য আন্তর্জাতিক এলাকা", "১৫%", isDark)
+                    if (counts.isUnavailable || topCountries.isEmpty()) {
+                        LocationRow(
+                            if (counts.isUnavailable) "ক্লাউড টেলিমেট্রি অনুপলব্ধ (Offline)" else "কোনো জিও-লোকেশন ডেটা নেই",
+                            "N/A",
+                            isDark
+                        )
+                    } else {
+                        val denominator = topCountries.sumOf { it.count }.coerceAtLeast(1)
+                        topCountries.forEach { entry ->
+                            val pct = (entry.count * 100) / denominator
+                            LocationRow("${entry.country} (${entry.count})", "$pct%", isDark)
+                        }
+                    }
                 }
             }
         }

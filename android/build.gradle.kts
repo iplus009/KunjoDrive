@@ -38,12 +38,18 @@ android {
         }
     }
 
-    val officialReleaseKeystore = rootProject.file("certs/kunjo-release.jks")
     val envProps = Properties().apply {
         val f = rootProject.file(".env")
         if (f.exists()) {
             FileInputStream(f).use { load(it) }
         }
+    }
+    val keystorePath = System.getenv("KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
+        ?: envProps.getProperty("KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
+    val officialReleaseKeystore = if (keystorePath != null) {
+        file(keystorePath)
+    } else {
+        rootProject.file("certs/kunjo-release.jks")
     }
     val resolvedStorePassword = System.getenv("KEYSTORE_PASSWORD")
         ?: envProps.getProperty("KEYSTORE_PASSWORD")
@@ -57,23 +63,26 @@ android {
         ?: envProps.getProperty("KEY_ALIAS")
         ?: "kunjo"
 
+    val hasReleaseSigning = officialReleaseKeystore.isFile &&
+        officialReleaseKeystore.length() > 0L &&
+        !resolvedStorePassword.isNullOrBlank() &&
+        !resolvedKeyPassword.isNullOrBlank()
+
     signingConfigs {
         create("release") {
-            if (officialReleaseKeystore.exists()) {
+            if (hasReleaseSigning) {
                 storeFile = officialReleaseKeystore
-                storePassword = resolvedStorePassword ?: error("KEYSTORE_PASSWORD is not set in env or .env")
+                storePassword = resolvedStorePassword
                 keyAlias = resolvedKeyAlias
-                keyPassword = resolvedKeyPassword ?: error("KEY_PASSWORD is not set in env or .env")
+                keyPassword = resolvedKeyPassword
                 enableV1Signing = true
                 enableV2Signing = true
-            } else {
-                error("Missing release keystore at certs/kunjo-release.jks")
             }
         }
     }
     buildTypes {
         debug {
-            signingConfig = if (officialReleaseKeystore.exists()) {
+            signingConfig = if (hasReleaseSigning) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")
@@ -86,7 +95,24 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+        }
+    }
+
+    gradle.taskGraph.whenReady {
+        val runningReleaseTask = allTasks.any {
+            it.project == project &&
+                it.name.contains("Release") &&
+                !it.name.contains("UnitTest")
+        }
+        if (runningReleaseTask && !hasReleaseSigning) {
+            logger.warn(
+                "Release keystore or signing passwords not configured; falling back to debug signing config."
+            )
         }
     }
     compileOptions {

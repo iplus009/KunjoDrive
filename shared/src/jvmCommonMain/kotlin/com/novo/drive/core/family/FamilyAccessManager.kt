@@ -220,21 +220,6 @@ class FamilyAccessManager(
             return AppResult.Failure(AppError.Unknown("This Family Invite has already expired."))
         }
 
-        // Persist scoped Family policy BEFORE starting TDLib QR handshake
-        settingsRepository.update {
-            it.copy(
-                accountRole = AccountRole.FAMILY_MEMBER,
-                storageChatId = payload.channelChatId,
-                familySlotIndex = payload.slotIndex,
-                familyMemberName = payload.memberName,
-                familyQuotaBytes = payload.quotaBytes,
-                familyExpiresAtMs = payload.expiresAtMs,
-                familyGrantSignature = payload.grantSignature,
-                familySubKeyBase64 = payload.subKeyBase64,
-                transferConcurrency = 1
-            )
-        }
-
         when (val configured = telegramAuthRepository.configure(
             TelegramCredentials(payload.apiId, payload.apiHash)
         )) {
@@ -245,11 +230,50 @@ class FamilyAccessManager(
         return AppResult.Success(payload)
     }
 
+    /** Persist Family grant settings only AFTER TDLib QR login completes cleanly. */
+    suspend fun activateAcceptedGrant(payload: NovoFamilyGrantPayload) {
+        settingsRepository.update {
+            it.copy(
+                accountRole = AccountRole.FAMILY_MEMBER,
+                storageChatId = payload.channelChatId,
+                familySlotIndex = payload.slotIndex,
+                familyMemberName = payload.memberName,
+                familyQuotaBytes = payload.quotaBytes,
+                familyExpiresAtMs = payload.expiresAtMs,
+                familyGrantSignature = payload.grantSignature,
+                familySubKeyBase64 = payload.subKeyBase64,
+                kunjoAccountType = "SUB",
+                kunjoCanUpload = false,
+                transferConcurrency = 1
+            )
+        }
+    }
+
+    suspend fun clearFamilyGrantState() {
+        settingsRepository.update {
+            it.copy(
+                accountRole = AccountRole.OWNER,
+                familySlotIndex = 0,
+                familyMemberName = "",
+                familyQuotaBytes = 0L,
+                familyExpiresAtMs = 0L,
+                familyGrantSignature = "",
+                familySubKeyBase64 = ""
+            )
+        }
+    }
+
     suspend fun approveMemberDeviceQr(tgLoginLink: String): AppResult<Unit> {
+        val prefs = settingsRepository.preferences.first()
+        if (prefs.accountRole != AccountRole.OWNER) {
+            return AppResult.Failure(
+                AppError.Unknown("শুধুমাত্র ফ্যামিলি ওনার মেম্বার ডিভাইস অনুমোদন করতে পারবেন।")
+            )
+        }
         val link = tgLoginLink.trim()
         if (!link.startsWith("tg://login?token=")) {
             return AppResult.Failure(
-                AppError.Unknown("Scan or paste the Step-2 Session QR ('tg://login?token=...') shown on the family member's Novo Drive.")
+                AppError.Unknown("Scan or paste the Step-2 Session QR ('tg://login?token=...') shown on the family member's Kunjo Drive.")
             )
         }
         return telegramAuthRepository.confirmQrCodeAuthentication(link)

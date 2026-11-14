@@ -124,7 +124,12 @@ class PreviewViewModel(
                     sortDirection = prefs.sortDirection
                 )
             }
-            val siblings = fileRepository.observeFiles(spec).first()
+            val rawSiblings = fileRepository.observeFiles(spec).first()
+            val siblings = when {
+                route.secondVaultOnly -> rawSiblings.filter { it.id in prefs.secondVaultFileIds }
+                route.hiddenOnly -> rawSiblings.filter { it.id !in prefs.secondVaultFileIds }
+                else -> rawSiblings
+            }
             val files = if (siblings.any { it.id == target.id }) siblings else listOf(target)
             _uiState.update {
                 it.copy(

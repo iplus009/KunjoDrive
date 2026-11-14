@@ -2,9 +2,12 @@ package com.novo.drive.presentation.iplusmessage
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.novo.drive.core.common.AppResult
 import com.novo.drive.core.files.FileImporter
 import com.novo.drive.core.network.SupabaseRestClient
+import com.novo.drive.core.telegram.IncomingTelegramMessage
 import com.novo.drive.core.telegram.TelegramClient
+import com.novo.drive.core.telegram.TelegramDownloadEvent
 import com.novo.drive.core.telegram.TelegramUploadEvent
 import com.novo.drive.data.local.dao.FamilyDao
 import com.novo.drive.data.local.dao.IplusMessageDao
@@ -16,12 +19,16 @@ import com.novo.drive.domain.model.DriveFile
 import com.novo.drive.domain.model.UserPreferences
 import com.novo.drive.domain.repository.FileRepository
 import com.novo.drive.domain.repository.SettingsRepository
+import java.io.File
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
@@ -94,6 +101,15 @@ class IplusMessageViewModel(
     private val _searchResults = MutableStateFlow<List<DewanUserSearchResult>>(emptyList())
     val searchResults: StateFlow<List<DewanUserSearchResult>> = _searchResults.asStateFlow()
 
+    private val _statusMessages = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    val statusMessages: SharedFlow<String> = _statusMessages.asSharedFlow()
+
+    private val _currentTelegramUserId = MutableStateFlow(0L)
+    val currentTelegramUserId: StateFlow<Long> = _currentTelegramUserId.asStateFlow()
+
+    private val _groupMembers = MutableStateFlow<Map<Long, List<GroupMemberItem>>>(emptyMap())
+    val groupMembers: StateFlow<Map<Long, List<GroupMemberItem>>> = _groupMembers.asStateFlow()
+
     // ═══════════════════════════════════════════════════════════════
     // Search Debouncing: prevent spam API calls on every keystroke
     // ═══════════════════════════════════════════════════════════════
@@ -119,6 +135,22 @@ class IplusMessageViewModel(
         viewModelScope.launch {
             for (signal in retryTrigger) {
                 processRetryQueue()
+            }
+        }
+        viewModelScope.launch {
+            val user = runCatching { telegramClient.getCurrentUser() }.getOrNull()
+            if (user != null && user.id > 0L) {
+                _currentTelegramUserId.value = user.id
+                val prefs = runCatching { settingsRepository.preferences.first() }.getOrNull()
+                if (prefs != null && prefs.kunjoUsername.isNotBlank()) {
+                    runCatching { SupabaseRestClient.linkTelegramUserId(prefs.kunjoUsername, user.id) }
+                }
+            }
+        }
+        viewModelScope.launch {
+            val incoming = runCatching { telegramClient.incomingMessages() }.getOrNull() ?: return@launch
+            incoming.collect { msg ->
+                handleIncomingTelegramMessage(msg)
             }
         }
     }
@@ -187,9 +219,10 @@ class IplusMessageViewModel(
                 }
             } else if (prefs.accountRole == AccountRole.FAMILY_MEMBER) {
                 // Sub-Account searching Main Account / Owner
-                if ("owner".contains(cleanUser) || "main".contains(cleanUser) || "admin".contains(cleanUser) ||
+                if (cleanUser.length >= 2 && (
+                    "owner".contains(cleanUser) || "main".contains(cleanUser) || "admin".contains(cleanUser) ||
                     "cloud".contains(cleanUser) || cleanUser.contains("dewan") || cleanUser.contains("kunjo")
-                ) {
+                )) {
                     results.add(
                         DewanUserSearchResult(
                             userId = 1L,
@@ -274,11 +307,24 @@ class IplusMessageViewModel(
 
     fun sendMessage(chatId: Long, text: String, driveLink: String?, isViewOnce: Boolean, contactName: String = "User") {
         viewModelScope.launch {
-            val prefs = preferences.value
+            val prefs = settingsRepository.preferences.first()
 
             // STRICT SUB-ACCOUNT RESTRICTION 1: Sub-Account CANNOT send text messages or chat! Only drive links allowed!
             if (prefs.isFamilyMember && text.isNotBlank() && driveLink.isNullOrBlank()) {
                 return@launch
+            }
+
+            // Enforce Read-Only governance for non-owner/non-admin/non-allowed members
+            val activeGroup = messageDao.getGroup(chatId)
+            val selfId = if (activeGroup?.ownerId == 0L) 0L else _currentTelegramUserId.value
+            if (activeGroup != null && activeGroup.isReadOnly) {
+                val isOwner = selfId == activeGroup.ownerId
+                val isAdmin = activeGroup.adminIds.split(",").filter { it.isNotBlank() }.contains(selfId.toString())
+                val isAllowed = activeGroup.allowedSenderIds.split(",").filter { it.isNotBlank() }.contains(selfId.toString())
+                if (!isOwner && !isAdmin && !isAllowed) {
+                    _statusMessages.tryEmit("⚠️ এই গ্রুপটি Read-Only মোডে আছে।")
+                    return@launch
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
@@ -291,7 +337,7 @@ class IplusMessageViewModel(
                     IplusMessageEntity(
                         messageId = System.currentTimeMillis() * 1000,
                         chatId = chatId,
-                        senderId = if (prefs.isFamilyMember) (1000L + prefs.familySlotIndex) else 0L,
+                        senderId = if (prefs.isFamilyMember) (1000L + prefs.familySlotIndex) else selfId,
                         text = if (prefs.isFamilyMember) null else text.ifBlank { null },
                         timestamp = now,
                         isOutgoing = true,
@@ -312,7 +358,7 @@ class IplusMessageViewModel(
             val entity = IplusMessageEntity(
                 messageId = messageId,
                 chatId = chatId,
-                senderId = if (prefs.isFamilyMember) (1000L + prefs.familySlotIndex) else 0L,
+                senderId = if (prefs.isFamilyMember) (1000L + prefs.familySlotIndex) else selfId,
                 text = if (prefs.isFamilyMember) null else text.ifBlank { null }, // Sub-account text stripped
                 timestamp = System.currentTimeMillis(),
                 isOutgoing = true,
@@ -324,7 +370,9 @@ class IplusMessageViewModel(
             messageDao.insertMessage(entity)
 
             // STRICT SUB-ACCOUNT RESTRICTION 2: Sub-Account CANNOT save contacts!
-            if (!prefs.isFamilyMember) {
+            // Also never insert groups into the DM contacts table.
+            val isGroupChat = chatId < 0L || activeGroup != null
+            if (!prefs.isFamilyMember && !isGroupChat) {
                 val existing = messageDao.getContact(chatId)
                 if (existing == null) {
                     messageDao.upsertContact(
@@ -533,30 +581,195 @@ class IplusMessageViewModel(
         }
     }
 
+    internal suspend fun handleIncomingTelegramMessage(msg: IncomingTelegramMessage) {
+        val prefs = runCatching { settingsRepository.preferences.first() }.getOrNull()
+        if (prefs != null && prefs.storageChatId == msg.chatId) return
+
+        val roomChatId = if (msg.isGroup) msg.chatId else msg.senderId
+        val senderContact = messageDao.getContact(msg.senderId)
+        if (!msg.isGroup && senderContact?.isBlocked == true) {
+            return
+        }
+
+        if (msg.isGroup) {
+            if (messageDao.getGroup(msg.chatId) == null) {
+                messageDao.upsertGroup(
+                    IplusMessageGroupEntity(
+                        groupId = msg.chatId,
+                        title = msg.chatTitle ?: "DewanGram Group",
+                        ownerId = 0L,
+                        memberCount = 1
+                    )
+                )
+            }
+            if (senderContact == null) {
+                messageDao.upsertContact(
+                    IplusMessageContactEntity(
+                        userId = msg.senderId,
+                        username = msg.senderUsername ?: "user_${msg.senderId}",
+                        displayName = msg.senderName ?: msg.senderUsername ?: "User #${msg.senderId}",
+                        lastSeenTimestamp = msg.timestampMs
+                    )
+                )
+            }
+        } else {
+            val resolvedName = msg.senderName
+                ?: senderContact?.displayName
+                ?: msg.senderUsername
+                ?: "User #${msg.senderId}"
+            val resolvedUsername = msg.senderUsername
+                ?: senderContact?.username
+                ?: "user_${msg.senderId}"
+            messageDao.upsertContact(
+                (senderContact ?: IplusMessageContactEntity(
+                    userId = msg.senderId,
+                    username = resolvedUsername,
+                    displayName = resolvedName
+                )).copy(
+                    username = resolvedUsername,
+                    displayName = resolvedName,
+                    lastSeenTimestamp = msg.timestampMs
+                )
+            )
+        }
+
+        val driveLink = msg.remoteFileId?.let { remoteId ->
+            val safeName = (msg.fileName ?: "DewanGram_File").replace("|", "_")
+            val safeMime = (msg.mimeType ?: "application/octet-stream").replace("|", "_")
+            "tgremote://$remoteId|$safeName|$safeMime"
+        }
+        val displayText = msg.text ?: msg.fileName?.let { "📎 ফাইল: $it" }
+
+        messageDao.insertMessage(
+            IplusMessageEntity(
+                messageId = msg.messageId,
+                chatId = roomChatId,
+                senderId = msg.senderId,
+                text = displayText,
+                timestamp = msg.timestampMs,
+                isOutgoing = false,
+                status = "DELIVERED",
+                driveLink = driveLink,
+                isViewOnce = false,
+                isViewed = false
+            )
+        )
+    }
+
+    fun setScreenProtectionEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.update { it.copy(blockScreenCapture = enabled) }
+        }
+    }
+
+    fun saveToMyDrive(driveLink: String, onSaved: ((DriveFile) -> Unit)? = null) {
+        viewModelScope.launch {
+            val link = driveLink.trim()
+            if (link.isBlank()) {
+                _statusMessages.tryEmit("⚠️ কোনো বৈধ ফাইল লিংক পাওয়া যায়নি।")
+                return@launch
+            }
+            when {
+                link.startsWith("kunjo://file/") -> {
+                    val fileId = link.removePrefix("kunjo://file/").substringBefore("|")
+                    val existing = runCatching { fileRepository.getFile(fileId) }.getOrNull()
+                    if (existing != null) {
+                        _statusMessages.tryEmit("ℹ️ '${existing.name}' ইতিমধ্যেই আপনার ড্রাইভে সংরক্ষিত আছে।")
+                        onSaved?.invoke(existing)
+                    } else {
+                        _statusMessages.tryEmit("⚠️ ফাইলটি এই ডিভাইসের ড্রাইভে খুঁজে পাওয়া যায়নি।")
+                    }
+                }
+                link.startsWith("tgremote://") -> {
+                    val parts = link.removePrefix("tgremote://").split("|")
+                    val remoteId = parts.getOrNull(0).orEmpty()
+                    val fileName = parts.getOrNull(1)?.takeIf { it.isNotBlank() } ?: "DewanGram_File"
+                    if (remoteId.isBlank()) {
+                        _statusMessages.tryEmit("⚠️ টেলিগ্রাম ফাইল রেফারেন্স অসম্পূর্ণ।")
+                        return@launch
+                    }
+                    _statusMessages.tryEmit("⬇️ '$fileName' ড্রাইভে ডাউনলোড হচ্ছে...")
+                    var downloadedPath: String? = null
+                    runCatching {
+                        telegramClient.downloadDocument(remoteId).collect { event ->
+                            if (event is TelegramDownloadEvent.Completed) {
+                                downloadedPath = event.localPath
+                            }
+                        }
+                    }
+                    val path = downloadedPath
+                    if (path == null) {
+                        _statusMessages.tryEmit("⚠️ টেলিগ্রাম থেকে ফাইল ডাউনলোড করা যায়নি।")
+                        return@launch
+                    }
+                    val staged = runCatching { fileImporter.import(path) }.getOrNull()
+                    val importPath = staged?.path ?: path
+                    when (val res = fileRepository.importLocalFile(importPath, null, fileName)) {
+                        is AppResult.Success -> {
+                            _statusMessages.tryEmit("✅ '${res.value.name}' আপনার কুঞ্জ ড্রাইভে সেভ হয়েছে!")
+                            onSaved?.invoke(res.value)
+                        }
+                        is AppResult.Failure -> {
+                            staged?.let { runCatching { fileImporter.discard(it) } }
+                            _statusMessages.tryEmit("⚠️ ফাইলটি ড্রাইভে সেভ করা যায়নি।")
+                        }
+                    }
+                }
+                else -> {
+                    val staged = runCatching { fileImporter.import(link) }.getOrNull()
+                    val importPath = staged?.path ?: link
+                    val displayName = staged?.name ?: File(link).name.takeIf { it.isNotBlank() } ?: "DewanGram_File"
+                    when (val res = fileRepository.importLocalFile(importPath, null, displayName)) {
+                        is AppResult.Success -> {
+                            _statusMessages.tryEmit("✅ '${res.value.name}' আপনার কুঞ্জ ড্রাইভে সেভ হয়েছে!")
+                            onSaved?.invoke(res.value)
+                        }
+                        is AppResult.Failure -> {
+                            staged?.let { runCatching { fileImporter.discard(it) } }
+                            _statusMessages.tryEmit("⚠️ ফাইলটি ড্রাইভে সেভ করা যায়নি।")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fun createGroup(title: String, username: String? = null, onCreated: ((Long) -> Unit)? = null) {
         viewModelScope.launch {
-            val prefs = preferences.value
+            val prefs = settingsRepository.preferences.first()
             // STRICT SUB-ACCOUNT RESTRICTION 3: Sub-Account CANNOT create groups!
             if (prefs.isFamilyMember) {
                 return@launch
             }
-            val groupId = System.currentTimeMillis()
             val cleanUsername = username?.removePrefix("@")?.trim()?.takeIf { it.isNotBlank() }
+            val tgGroup = runCatching {
+                telegramClient.createDewangramGroup(title, cleanUsername)
+            }.getOrNull()
+            val groupId = tgGroup?.chatId ?: System.currentTimeMillis()
+            val ownerId = tgGroup?.ownerUserId?.takeIf { it > 0L } ?: _currentTelegramUserId.value
             val group = IplusMessageGroupEntity(
                 groupId = groupId,
-                title = title,
-                ownerId = 0L,
-                memberCount = 1,
-                inviteLink = "dewan://join/g_$groupId",
-                groupUsername = cleanUsername
+                title = tgGroup?.title ?: title,
+                ownerId = ownerId,
+                memberCount = tgGroup?.memberCount ?: 1,
+                inviteLink = tgGroup?.inviteLink ?: "dewan://join/g_${groupId.toString().removePrefix("-")}",
+                groupUsername = tgGroup?.username ?: cleanUsername
             )
             messageDao.upsertGroup(group)
+            refreshGroupMembers(groupId)
+            _statusMessages.tryEmit(
+                if (tgGroup != null) "✅ টেলিগ্রাম গ্রুপ '${group.title}' তৈরি হয়েছে!"
+                else "ℹ️ অফলাইন গ্রুপ '${group.title}' তৈরি হয়েছে (লোকাল মোড)।"
+            )
             onCreated?.invoke(groupId)
         }
     }
 
     fun deleteGroup(groupId: Long) {
         viewModelScope.launch {
+            if (groupId < 0L) {
+                runCatching { telegramClient.leaveOrDeleteGroup(groupId) }
+            }
             messageDao.deleteMessagesForChat(groupId)
             messageDao.deleteGroup(groupId)
         }
@@ -564,6 +777,9 @@ class IplusMessageViewModel(
 
     fun updateGroupTitle(groupId: Long, title: String) {
         viewModelScope.launch {
+            if (groupId < 0L) {
+                runCatching { telegramClient.updateGroupTitle(groupId, title) }
+            }
             messageDao.updateGroupTitle(groupId, title)
         }
     }
@@ -571,12 +787,18 @@ class IplusMessageViewModel(
     fun updateGroupUsername(groupId: Long, username: String?) {
         viewModelScope.launch {
             val clean = username?.removePrefix("@")?.trim()?.takeIf { it.isNotBlank() }
+            if (groupId < 0L) {
+                runCatching { telegramClient.updateGroupUsername(groupId, clean) }
+            }
             messageDao.updateGroupUsername(groupId, clean)
         }
     }
 
     fun setGroupReadOnly(groupId: Long, isReadOnly: Boolean) {
         viewModelScope.launch {
+            if (groupId < 0L) {
+                runCatching { telegramClient.setGroupReadOnly(groupId, isReadOnly) }
+            }
             messageDao.updateGroupReadOnly(groupId, isReadOnly)
         }
     }
@@ -584,6 +806,9 @@ class IplusMessageViewModel(
     fun setMemberAdminRole(groupId: Long, targetUserId: Long, makeAdmin: Boolean) {
         viewModelScope.launch {
             val group = messageDao.getGroup(groupId) ?: return@launch
+            if (groupId < 0L) {
+                runCatching { telegramClient.setGroupAdminRole(groupId, targetUserId, makeAdmin) }
+            }
             val currentAdmins = group.adminIds.split(",").filter { it.isNotBlank() }.toMutableSet()
             if (makeAdmin) {
                 currentAdmins.add(targetUserId.toString())
@@ -591,6 +816,7 @@ class IplusMessageViewModel(
                 currentAdmins.remove(targetUserId.toString())
             }
             messageDao.updateGroupAdmins(groupId, currentAdmins.joinToString(","))
+            refreshGroupMembers(groupId)
         }
     }
 
@@ -604,22 +830,232 @@ class IplusMessageViewModel(
                 currentAllowed.remove(targetUserId.toString())
             }
             messageDao.updateGroupAllowedSenders(groupId, currentAllowed.joinToString(","))
+            refreshGroupMembers(groupId)
         }
     }
 
-    fun removeMemberWithRoleCheck(groupId: Long, requesterId: Long, targetUserId: Long): Boolean {
+    fun refreshGroupMembers(groupId: Long) {
         viewModelScope.launch {
             val group = messageDao.getGroup(groupId) ?: return@launch
-            val adminList = group.adminIds.split(",").filter { it.isNotBlank() }.toSet()
-            val isTargetAdmin = adminList.contains(targetUserId.toString())
-            val isRequesterOwner = requesterId == group.ownerId
+            val adminSet = group.adminIds.split(",").filter { it.isNotBlank() }.toSet()
+            val allowedSet = group.allowedSenderIds.split(",").filter { it.isNotBlank() }.toSet()
+            val prefs = runCatching { settingsRepository.preferences.first() }.getOrNull()
+            val selfId = if (group.ownerId == 0L) 0L else _currentTelegramUserId.value
+            val merged = linkedMapOf<Long, GroupMemberItem>()
 
-            if (!isRequesterOwner && isTargetAdmin) {
-                // Admin cannot remove other admins!
+            // 1. Live Telegram members when this is a Telegram supergroup/basicgroup
+            if (groupId < 0L) {
+                val tgMembers = runCatching { telegramClient.fetchGroupMembers(groupId) }
+                    .getOrDefault(emptyList())
+                tgMembers.forEach { m ->
+                    val role = when {
+                        m.userId == group.ownerId || m.role == "OWNER" -> "OWNER"
+                        m.role == "ADMIN" || adminSet.contains(m.userId.toString()) -> "ADMIN"
+                        else -> "MEMBER"
+                    }
+                    merged[m.userId] = GroupMemberItem(
+                        userId = m.userId,
+                        name = if (m.userId == selfId && selfId != 0L) "আপনি (You)" else m.displayName,
+                        username = m.username ?: "user_${m.userId}",
+                        role = role,
+                        isAllowedSender = allowedSet.contains(m.userId.toString()),
+                        avatarEmoji = if (role == "OWNER") "👑" else if (role == "ADMIN") "🛡️" else "👤"
+                    )
+                }
+            }
+
+            // 2. Ensure self / owner is always shown
+            if (!merged.containsKey(selfId)) {
+                val selfRole = when {
+                    group.ownerId == selfId -> "OWNER"
+                    adminSet.contains(selfId.toString()) -> "ADMIN"
+                    else -> "MEMBER"
+                }
+                merged[selfId] = GroupMemberItem(
+                    userId = selfId,
+                    name = "আপনি (You)",
+                    username = prefs?.kunjoUsername?.takeIf { it.isNotBlank() } ?: "me",
+                    role = selfRole,
+                    isAllowedSender = allowedSet.contains(selfId.toString()),
+                    avatarEmoji = if (selfRole == "OWNER") "👑" else "👤"
+                )
+            }
+
+            // 3. Merge any locally tracked admin / allowed-sender members
+            (adminSet + allowedSet).mapNotNull { it.toLongOrNull() }.forEach { uid ->
+                if (!merged.containsKey(uid)) {
+                    val contact = messageDao.getContact(uid)
+                    val role = when {
+                        uid == group.ownerId -> "OWNER"
+                        adminSet.contains(uid.toString()) -> "ADMIN"
+                        else -> "MEMBER"
+                    }
+                    merged[uid] = GroupMemberItem(
+                        userId = uid,
+                        name = contact?.displayName ?: "User #$uid",
+                        username = contact?.username ?: "user_$uid",
+                        role = role,
+                        isAllowedSender = allowedSet.contains(uid.toString()),
+                        avatarEmoji = contact?.avatarValue ?: "👤"
+                    )
+                }
+            }
+
+            // Preserve any members already added in-session
+            _groupMembers.value[groupId].orEmpty().forEach { existing ->
+                if (!merged.containsKey(existing.userId)) {
+                    val contact = messageDao.getContact(existing.userId)
+                    merged[existing.userId] = existing.copy(
+                        name = contact?.displayName ?: existing.name,
+                        role = when {
+                            existing.userId == group.ownerId -> "OWNER"
+                            adminSet.contains(existing.userId.toString()) -> "ADMIN"
+                            else -> "MEMBER"
+                        },
+                        isAllowedSender = allowedSet.contains(existing.userId.toString())
+                    )
+                }
+            }
+
+            val finalList = merged.values.toList()
+            _groupMembers.value = _groupMembers.value + (groupId to finalList)
+            if (finalList.size > group.memberCount) {
+                messageDao.upsertGroup(group.copy(memberCount = finalList.size))
+            }
+        }
+    }
+
+    fun addGroupMember(groupId: Long, user: DewanUserSearchResult) {
+        viewModelScope.launch {
+            val group = messageDao.getGroup(groupId) ?: return@launch
+            if (user.userId <= 0L) {
+                _statusMessages.tryEmit("⚠️ এই ব্যবহারকারীর টেলিগ্রাম আইডি যুক্ত নেই, তাই গ্রুপে যোগ করা যাচ্ছে না।")
                 return@launch
             }
-            setMemberAdminRole(groupId, targetUserId, false)
-            setMemberSendPermission(groupId, targetUserId, false)
+            messageDao.upsertContact(
+                IplusMessageContactEntity(
+                    userId = user.userId,
+                    username = user.username,
+                    displayName = user.displayName,
+                    avatarValue = user.avatarEmoji,
+                    lastSeenTimestamp = System.currentTimeMillis()
+                )
+            )
+            if (groupId < 0L) {
+                val added = runCatching { telegramClient.addChatMember(groupId, user.userId) }
+                    .getOrDefault(false)
+                if (!added) {
+                    _statusMessages.tryEmit("⚠️ '${user.displayName}' কে টেলিগ্রাম গ্রুপে যোগ করা যায়নি (প্রাইভেসি লিমিট)। ইনভাইট লিংক শেয়ার করুন।")
+                    return@launch
+                }
+            } else {
+                // Record member locally via allowedSenderIds if not already present
+                setMemberSendPermission(groupId, user.userId, true)
+            }
+            val currentList = _groupMembers.value[groupId].orEmpty().toMutableList()
+            if (currentList.none { it.userId == user.userId }) {
+                currentList += GroupMemberItem(
+                    userId = user.userId,
+                    name = user.displayName,
+                    username = user.username,
+                    role = "MEMBER",
+                    isAllowedSender = groupId >= 0L,
+                    avatarEmoji = user.avatarEmoji
+                )
+                _groupMembers.value = _groupMembers.value + (groupId to currentList)
+                messageDao.upsertGroup(group.copy(memberCount = currentList.size.coerceAtLeast(group.memberCount + 1)))
+            }
+            refreshGroupMembers(groupId)
+            _statusMessages.tryEmit("✅ '${user.displayName}' গ্রুপে যুক্ত হয়েছেন।")
+        }
+    }
+
+    fun joinGroupFromDeepLink(rawUri: String, onJoined: ((Long, String) -> Unit)? = null) {
+        viewModelScope.launch {
+            val trimmed = rawUri.trim()
+            if (trimmed.isBlank()) return@launch
+            val target = trimmed
+                .removePrefix("dewan://join/")
+                .removePrefix("kunjodrive://join/")
+                .trim('/')
+
+            val numericLocalId = target.removePrefix("g_").toLongOrNull()
+            if (numericLocalId != null) {
+                val existing = messageDao.getGroup(numericLocalId)
+                    ?: messageDao.getGroup(-numericLocalId)
+                if (existing != null) {
+                    onJoined?.invoke(existing.groupId, existing.title)
+                    return@launch
+                }
+            }
+
+            val tgInfo = runCatching { telegramClient.joinGroupByInviteOrUsername(target) }.getOrNull()
+            if (tgInfo != null) {
+                messageDao.upsertGroup(
+                    IplusMessageGroupEntity(
+                        groupId = tgInfo.chatId,
+                        title = tgInfo.title,
+                        ownerId = tgInfo.ownerUserId,
+                        memberCount = tgInfo.memberCount,
+                        inviteLink = tgInfo.inviteLink ?: trimmed,
+                        groupUsername = tgInfo.username
+                    )
+                )
+                refreshGroupMembers(tgInfo.chatId)
+                _statusMessages.tryEmit("✅ '${tgInfo.title}' গ্রুপে যুক্ত হয়েছেন!")
+                onJoined?.invoke(tgInfo.chatId, tgInfo.title)
+            } else {
+                _statusMessages.tryEmit("⚠️ গ্রুপ ইনভাইট লিংকটি কার্যকর নয় বা আপনি ইতিমধ্যেই সংযুক্ত নন।")
+            }
+        }
+    }
+
+    suspend fun tryRemoveMember(groupId: Long, requesterId: Long, targetUserId: Long): Boolean {
+        val group = messageDao.getGroup(groupId) ?: return false
+        if (targetUserId == group.ownerId || requesterId == targetUserId) {
+            _statusMessages.tryEmit("⚠️ গ্রুপ ওনার বা নিজেকে সরানো যাবে না।")
+            return false
+        }
+        val adminList = group.adminIds.split(",").filter { it.isNotBlank() }.toSet()
+        val isTargetAdmin = adminList.contains(targetUserId.toString())
+        val isRequesterOwner = requesterId == group.ownerId
+        val isRequesterAdmin = isRequesterOwner || adminList.contains(requesterId.toString())
+        if (!isRequesterAdmin) {
+            _statusMessages.tryEmit("⚠️ সদস্য সরানোর অনুমতি নেই।")
+            return false
+        }
+        if (!isRequesterOwner && isTargetAdmin) {
+            _statusMessages.tryEmit("⚠️ অ্যাডমিন অন্য অ্যাডমিনকে রিমুভ করতে পারবে না।")
+            return false
+        }
+        if (groupId < 0L) {
+            runCatching { telegramClient.removeChatMember(groupId, targetUserId) }
+        }
+        val updatedAdmins = adminList - targetUserId.toString()
+        val updatedAllowed = group.allowedSenderIds.split(",").filter { it.isNotBlank() }.toSet() - targetUserId.toString()
+        messageDao.updateGroupAdmins(groupId, updatedAdmins.joinToString(","))
+        messageDao.updateGroupAllowedSenders(groupId, updatedAllowed.joinToString(","))
+        val updatedList = _groupMembers.value[groupId].orEmpty().filterNot { it.userId == targetUserId }
+        _groupMembers.value = _groupMembers.value + (groupId to updatedList)
+        messageDao.upsertGroup(group.copy(
+            adminIds = updatedAdmins.joinToString(","),
+            allowedSenderIds = updatedAllowed.joinToString(","),
+            memberCount = (group.memberCount - 1).coerceAtLeast(1)
+        ))
+        _statusMessages.tryEmit("✅ সদস্যকে গ্রুপ থেকে সরানো হয়েছে।")
+        return true
+    }
+
+    fun removeMemberWithRoleCheck(
+        groupId: Long,
+        requesterId: Long,
+        targetUserId: Long,
+        onResult: ((Boolean) -> Unit)? = null
+    ): Boolean {
+        if (requesterId == targetUserId) return false
+        viewModelScope.launch {
+            val ok = tryRemoveMember(groupId, requesterId, targetUserId)
+            onResult?.invoke(ok)
         }
         return true
     }

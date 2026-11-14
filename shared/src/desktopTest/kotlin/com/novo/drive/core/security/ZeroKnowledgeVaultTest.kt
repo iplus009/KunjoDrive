@@ -31,6 +31,11 @@ class ZeroKnowledgeVaultTest {
         assertEquals(secretSession, decrypted)
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun testDeriveKeysThrowsOnMalformedSalt() {
+        ZeroKnowledgeVault.deriveKeys("Password123".toCharArray(), "not-valid-base64!!!")
+    }
+
     @Test(expected = AEADBadTagException::class)
     fun testDecryptFailsWithWrongKey() {
         val keysA = ZeroKnowledgeVault.deriveKeys("PasswordA".toCharArray())

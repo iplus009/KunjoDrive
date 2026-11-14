@@ -110,7 +110,13 @@ private data class LastSeenPatch(
 data class UserCountSummary(
     val totalUsers: Int = 0,
     val mainUsers: Int = 0,
-    val subUsers: Int = 0
+    val subUsers: Int = 0,
+    val isUnavailable: Boolean = false
+)
+
+data class CountryCount(
+    val country: String,
+    val count: Int
 )
 
 @Serializable
@@ -277,7 +283,7 @@ object SupabaseRestClient {
     }
 
     suspend fun fetchUserCounts(): UserCountSummary = withContext(Dispatchers.IO) {
-        if (!isConfigured) return@withContext UserCountSummary()
+        if (!isConfigured) return@withContext UserCountSummary(isUnavailable = true)
         var conn: HttpURLConnection? = null
         try {
             conn = openConnection("/kunjo_users?select=account_type", "GET")
@@ -295,15 +301,43 @@ object SupabaseRestClient {
                 return@withContext UserCountSummary(
                     totalUsers = total,
                     mainUsers = mainCount,
-                    subUsers = subCount
+                    subUsers = subCount,
+                    isUnavailable = false
                 )
             }
         } catch (_: Throwable) {
-            // Silently return fallback
+            // Fall through to unavailable state without reporting fabricated counts
         } finally {
             conn?.disconnect()
         }
-        UserCountSummary(totalUsers = 1, mainUsers = 1, subUsers = 0)
+        UserCountSummary(totalUsers = 0, mainUsers = 0, subUsers = 0, isUnavailable = true)
+    }
+
+    suspend fun fetchTopCountries(limit: Int = 5): List<CountryCount> = withContext(Dispatchers.IO) {
+        if (!isConfigured) return@withContext emptyList()
+        var conn: HttpURLConnection? = null
+        try {
+            conn = openConnection("/kunjo_users?select=country", "GET")
+            if (conn.responseCode == 200) {
+                val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                val root = json.parseToJsonElement(responseText).jsonArray
+                val counts = linkedMapOf<String, Int>()
+                for (item in root) {
+                    val raw = item.jsonObject["country"]?.jsonPrimitive?.contentOrNull?.trim()
+                    val normalized = if (raw.isNullOrBlank()) "Unknown" else raw
+                    counts[normalized] = (counts[normalized] ?: 0) + 1
+                }
+                return@withContext counts.entries
+                    .sortedByDescending { it.value }
+                    .take(limit)
+                    .map { CountryCount(it.key, it.value) }
+            }
+        } catch (_: Throwable) {
+            // Offline / unreachable
+        } finally {
+            conn?.disconnect()
+        }
+        emptyList()
     }
 
     suspend fun getSubAccountPolicy(memberUserId: String): FamilyMemberPolicy? = withContext(Dispatchers.IO) {
@@ -361,13 +395,13 @@ object SupabaseRestClient {
      * Returns lightweight results: id, dewangram_username, telegram_user_id.
      */
     suspend fun searchDewangramUsers(query: String): List<DewanGramUserSearchResult> = withContext(Dispatchers.IO) {
-        if (!isConfigured || query.length < 2) return@withContext emptyList()
+        val cleanQuery = query.trim().lowercase().removePrefix("@")
+        if (!isConfigured || cleanQuery.length < 2) return@withContext emptyList()
         var conn: HttpURLConnection? = null
         try {
             // Sanitize: escape SQL wildcards _ and % which would match unintended results.
             // URLEncoder only encodes URL special chars, not SQL wildcards.
-            // Also strip @ prefix if present (user searches "@john" but username is stored as "john")
-            val sanitized = query.trim().lowercase().removePrefix("@")
+            val sanitized = cleanQuery
                 .replace("_", "\\_")
                 .replace("%", "\\%")
             if (sanitized.isBlank()) return@withContext emptyList()

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
@@ -81,6 +82,9 @@ fun IplusMessageScreen(
     isFamilyMember: Boolean = false,
     kunjoUsername: String = "",
     familyMemberName: String = "",
+    flagSecureEnabled: Boolean = false,
+    onFlagSecureChanged: (Boolean) -> Unit = {},
+    onJoinGroup: (String) -> Unit = {},
     onClearPendingShare: () -> Unit = {},
     onOpenChat: (chatId: Long, title: String, isGroup: Boolean) -> Unit,
     onCreateGroup: (title: String, username: String?) -> Unit,
@@ -90,11 +94,12 @@ fun IplusMessageScreen(
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Direct Chats, 1: Groups
     var searchQuery by remember { mutableStateOf("") }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
+    var showJoinGroupDialog by remember { mutableStateOf(false) }
+    var joinLinkInput by remember { mutableStateOf("") }
     var newGroupTitle by remember { mutableStateOf("") }
     var newGroupUsername by remember { mutableStateOf("") }
     var showDewanSettingsSheet by remember { mutableStateOf(false) }
     var showBlockedUsersSheet by remember { mutableStateOf(false) }
-    var defaultFlagSecure by remember { mutableStateOf(true) }
     var defaultViewOnce by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -160,6 +165,9 @@ fun IplusMessageScreen(
                     }
 
                     if (!isFamilyMember) {
+                        IconButton(onClick = { showJoinGroupDialog = true }) {
+                            Icon(Icons.Default.Link, contentDescription = "Join Group", tint = MaterialTheme.colorScheme.secondary)
+                        }
                         IconButton(onClick = { showCreateGroupDialog = true }) {
                             Icon(Icons.Default.Add, contentDescription = "New Group", tint = MaterialTheme.colorScheme.primary)
                         }
@@ -721,9 +729,9 @@ fun IplusMessageScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("স্ক্রিনশট ব্লক (FLAG_SECURE) ডিফল্ট", fontSize = 13.sp)
+                        Text("স্ক্রিনশট ব্লক (FLAG_SECURE)", fontSize = 13.sp)
                     }
-                    Switch(checked = defaultFlagSecure, onCheckedChange = { defaultFlagSecure = it })
+                    Switch(checked = flagSecureEnabled, onCheckedChange = onFlagSecureChanged)
                 }
 
                 Row(
@@ -820,6 +828,50 @@ fun IplusMessageScreen(
             confirmButton = {
                 TextButton(onClick = { showBlockedUsersSheet = false }) {
                     Text("ঠিক আছে")
+                }
+            }
+        )
+    }
+
+    // Join Group via Invite Link / @Username Dialog
+    if (showJoinGroupDialog) {
+        AlertDialog(
+            onDismissRequest = { showJoinGroupDialog = false },
+            title = { Text("🔗 গ্রুপ ইনভাইট লিংকে যুক্ত হোন") },
+            text = {
+                Column {
+                    Text(
+                        "টেলিগ্রাম গ্রুপ লিংক (t.me/+...), দেওয়ানগ্রাম লিংক (dewan://join/...) অথবা @username দিন।",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = joinLinkInput,
+                        onValueChange = { joinLinkInput = it },
+                        label = { Text("ইনভাইট লিংক বা @username") },
+                        placeholder = { Text("https://t.me/+... অথবা dewan://join/...") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (joinLinkInput.isNotBlank()) {
+                            onJoinGroup(joinLinkInput.trim())
+                            joinLinkInput = ""
+                            showJoinGroupDialog = false
+                        }
+                    }
+                ) {
+                    Text("যুক্ত হোন")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showJoinGroupDialog = false }) {
+                    Text("বাতিল")
                 }
             }
         )

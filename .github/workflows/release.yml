@@ -23,7 +23,12 @@ jobs:
         uses: ./.github/actions/build-ffmpeg-decoder
 
       - name: Decode keystore
-        run: echo "${{ secrets.KEYSTORE }}" | base64 -d > "$RUNNER_TEMP/keystore.jks"
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/keystore.jks"
+          fi
 
       - name: Assemble signed release APKs
         env:

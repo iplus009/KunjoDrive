@@ -285,13 +285,18 @@ private fun MainScaffold(
         } == true
         if (!graphReady) return@LaunchedEffect
 
-        when (target) {
-            NotificationDestinations.TRANSFERS -> navController.navigate(Route.Transfers)
-            NotificationDestinations.FILES -> navController.navigate(Route.Files())
-            NotificationDestinations.NOTE -> navController.navigate(
+        when {
+            target == NotificationDestinations.TRANSFERS -> navController.navigate(Route.Transfers)
+            target == NotificationDestinations.FILES -> navController.navigate(Route.Files())
+            target == NotificationDestinations.NOTE -> navController.navigate(
                 Route.NoteEditor(sharedText = pendingShare.text.value)
             )
-            NotificationDestinations.UPDATE -> onUpdateRequested()
+            target == NotificationDestinations.UPDATE -> onUpdateRequested()
+            target.startsWith(NotificationDestinations.DEWAN_JOIN_PREFIX) -> {
+                val rawJoin = target.removePrefix(NotificationDestinations.DEWAN_JOIN_PREFIX)
+                pendingShare.offerText("__dewan_join__$rawJoin")
+                navController.navigate(Route.DewanGram)
+            }
             else -> Unit
         }
         onDestinationHandled()

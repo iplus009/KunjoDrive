@@ -50,5 +50,12 @@ val repositoryModule = module {
     singleOf(::KunjoAuthRepository)
     singleOf(::OcrIndexService)
     singleOf(::LocalStreamBridgeServer)
-    single<KunjoBridge> { KunjoBridgeImpl(customMediaBridge = getOrNull()) }
+    single<KunjoBridge> {
+        KunjoBridgeImpl(
+            customMediaBridge = getOrNull(),
+            customSecurityBridge = getOrNull(),
+            customTransferBridge = getOrNull(),
+            customStorageBridge = getOrNull()
+        )
+    }
 }

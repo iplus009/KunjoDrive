@@ -71,7 +71,7 @@ fun IplusProtectedZipSheet(
     var compressionLevel by remember { mutableFloatStateOf(1f) } // 0=Store, 1=Normal, 2=Max
     var isCompressing by remember { mutableStateOf(false) }
 
-    val canProceed = !isCompressing && (!enableAes256 || password.isNotBlank())
+    val canProceed = !isCompressing && zipName.trim().isNotBlank() && (!enableAes256 || password.isNotBlank())
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

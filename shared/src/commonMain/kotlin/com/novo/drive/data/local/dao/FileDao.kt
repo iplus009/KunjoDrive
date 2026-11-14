@@ -560,10 +560,12 @@ interface FileDao {
     @Query(
         """SELECT * FROM files
            WHERE chatId IS :chatId AND trashedAt IS NULL
+             AND isHidden = 0
              AND contentHash IS NOT NULL AND contentHash != ''
              AND contentHash IN (
                  SELECT contentHash FROM files
                  WHERE chatId IS :chatId AND trashedAt IS NULL
+                   AND isHidden = 0
                    AND contentHash IS NOT NULL AND contentHash != ''
                  GROUP BY contentHash
                  HAVING COUNT(*) > 1

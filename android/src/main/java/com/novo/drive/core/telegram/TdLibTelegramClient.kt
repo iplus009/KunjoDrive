@@ -1360,6 +1360,319 @@ class TdLibTelegramClient(
         )
     }
 
+    override fun incomingMessages(): Flow<IncomingTelegramMessage> =
+        updates.filterIsInstance<TdApi.UpdateNewMessage>()
+            .mapNotNull { update ->
+                val msg = update.message
+                if (msg.isOutgoing || msg.isChannelPost) return@mapNotNull null
+                val senderUserId = (msg.senderId as? TdApi.MessageSenderUser)?.userId
+                    ?: return@mapNotNull null
+                val doc = msg.toRemoteDocument()
+                val textContent = when (val content = msg.content) {
+                    is TdApi.MessageText -> content.text?.text
+                    else -> doc?.caption?.takeIf { it.isNotBlank() }
+                }
+                if (doc != null && doc.fileName in INTERNAL_DOCUMENT_NAMES) return@mapNotNull null
+                if (textContent?.contains(STORAGE_CHAT_MARKER) == true) return@mapNotNull null
+                val chat = runCatching { paced { send<TdApi.Chat>(TdApi.GetChat(msg.chatId)) } }
+                    .getOrNull() ?: return@mapNotNull null
+                val isGroup = when (val type = chat.type) {
+                    is TdApi.ChatTypePrivate -> false
+                    is TdApi.ChatTypeBasicGroup -> true
+                    is TdApi.ChatTypeSupergroup -> if (type.isChannel) return@mapNotNull null else true
+                    else -> return@mapNotNull null
+                }
+                val sender = runCatching { paced { send<TdApi.User>(TdApi.GetUser(senderUserId)) } }
+                    .getOrNull()
+                IncomingTelegramMessage(
+                    messageId = msg.id,
+                    chatId = msg.chatId,
+                    senderId = senderUserId,
+                    senderName = sender?.displayNameOrNull(),
+                    senderUsername = sender?.primaryUsernameOrNull(),
+                    chatTitle = chat.title?.takeIf { it.isNotBlank() },
+                    isGroup = isGroup,
+                    text = textContent,
+                    fileName = doc?.fileName,
+                    mimeType = doc?.mimeType,
+                    fileSizeBytes = doc?.sizeBytes ?: 0L,
+                    remoteFileId = doc?.remoteFileId,
+                    timestampMs = msg.date.toLong() * 1000L
+                )
+            }
+
+    override suspend fun createDewangramGroup(title: String, username: String?): TelegramGroupInfo? {
+        awaitAuthorized()
+        val cleanTitle = title.trim().ifBlank { "DewanGram Group" }.take(MAX_LABEL_LENGTH)
+        val chat: TdApi.Chat = paced {
+            send(
+                TdApi.CreateNewSupergroupChat(
+                    cleanTitle,
+                    false,
+                    false,
+                    "DewanGram Secure Group • Kunjo Drive",
+                    null,
+                    0,
+                    false
+                )
+            )
+        }
+        val sgId = (chat.type as? TdApi.ChatTypeSupergroup)?.supergroupId ?: 0L
+        var activeUsername: String? = null
+        val cleanUser = username?.trim()?.removePrefix("@")?.takeIf { it.length >= 5 }
+        if (cleanUser != null && sgId != 0L) {
+            runCatching {
+                paced { send<TdApi.Ok>(TdApi.SetSupergroupUsername(sgId, cleanUser)) }
+                activeUsername = cleanUser
+            }.onFailure { SafeLog.w(TAG, "Group username setup failed", it) }
+        }
+        val inviteLink = runCatching {
+            paced {
+                send<TdApi.ChatInviteLink>(
+                    TdApi.CreateChatInviteLink(chat.id, "DewanGram Invite", 0, 0, false)
+                )
+            }.inviteLink
+        }.getOrNull()
+        val ownerId = runCatching { getCurrentUser().id }.getOrDefault(0L)
+        return TelegramGroupInfo(
+            chatId = chat.id,
+            supergroupId = sgId,
+            title = chat.title ?: cleanTitle,
+            username = activeUsername,
+            inviteLink = inviteLink,
+            memberCount = 1,
+            ownerUserId = ownerId
+        )
+    }
+
+    override suspend fun addChatMember(chatId: Long, userId: Long): Boolean {
+        if (chatId >= 0L || userId <= 0L) return false
+        awaitAuthorized()
+        return runCatching {
+            paced { send<TdApi.FailedToAddMembers>(TdApi.AddChatMember(chatId, userId, 50)) }
+            true
+        }.getOrElse {
+            SafeLog.w(TAG, "AddChatMember failed", it)
+            false
+        }
+    }
+
+    override suspend fun removeChatMember(chatId: Long, userId: Long): Boolean {
+        if (chatId >= 0L || userId <= 0L) return false
+        awaitAuthorized()
+        return runCatching {
+            paced {
+                send<TdApi.Ok>(
+                    TdApi.SetChatMemberStatus(
+                        chatId,
+                        TdApi.MessageSenderUser(userId),
+                        TdApi.ChatMemberStatusLeft()
+                    )
+                )
+            }
+            true
+        }.getOrElse {
+            SafeLog.w(TAG, "RemoveChatMember failed", it)
+            false
+        }
+    }
+
+    override suspend fun setGroupAdminRole(chatId: Long, userId: Long, isAdmin: Boolean): Boolean {
+        if (chatId >= 0L || userId <= 0L) return false
+        awaitAuthorized()
+        val status: TdApi.ChatMemberStatus = if (isAdmin) {
+            TdApi.ChatMemberStatusAdministrator().apply {
+                canBeEdited = true
+                rights = TdApi.ChatAdministratorRights().apply {
+                    canManageChat = true
+                    canDeleteMessages = true
+                    canInviteUsers = true
+                    canRestrictMembers = true
+                    canPinMessages = true
+                }
+            }
+        } else {
+            TdApi.ChatMemberStatusMember()
+        }
+        return runCatching {
+            paced {
+                send<TdApi.Ok>(
+                    TdApi.SetChatMemberStatus(chatId, TdApi.MessageSenderUser(userId), status)
+                )
+            }
+            true
+        }.getOrElse {
+            SafeLog.w(TAG, "SetGroupAdminRole failed", it)
+            false
+        }
+    }
+
+    override suspend fun updateGroupTitle(chatId: Long, title: String): Boolean {
+        if (chatId >= 0L || title.isBlank()) return false
+        awaitAuthorized()
+        return runCatching {
+            paced { send<TdApi.Ok>(TdApi.SetChatTitle(chatId, title.trim())) }
+            true
+        }.getOrElse {
+            SafeLog.w(TAG, "SetChatTitle failed", it)
+            false
+        }
+    }
+
+    override suspend fun updateGroupUsername(chatId: Long, username: String?): Boolean {
+        if (chatId >= 0L) return false
+        awaitAuthorized()
+        return runCatching {
+            val chat = paced { send<TdApi.Chat>(TdApi.GetChat(chatId)) }
+            val sgId = (chat.type as? TdApi.ChatTypeSupergroup)?.supergroupId ?: return false
+            val clean = username?.trim()?.removePrefix("@").orEmpty()
+            paced { send<TdApi.Ok>(TdApi.SetSupergroupUsername(sgId, clean)) }
+            true
+        }.getOrElse {
+            SafeLog.w(TAG, "SetSupergroupUsername failed", it)
+            false
+        }
+    }
+
+    override suspend fun setGroupReadOnly(chatId: Long, readOnly: Boolean): Boolean {
+        if (chatId >= 0L) return false
+        awaitAuthorized()
+        val permissions = TdApi.ChatPermissions().apply {
+            canSendBasicMessages = !readOnly
+            canSendAudios = !readOnly
+            canSendDocuments = !readOnly
+            canSendPhotos = !readOnly
+            canSendVideos = !readOnly
+            canSendVideoNotes = !readOnly
+            canSendVoiceNotes = !readOnly
+            canSendPolls = !readOnly
+            canSendOtherMessages = !readOnly
+            canAddLinkPreviews = !readOnly
+            canInviteUsers = !readOnly
+        }
+        return runCatching {
+            paced { send<TdApi.Ok>(TdApi.SetChatPermissions(chatId, permissions)) }
+            true
+        }.getOrElse {
+            SafeLog.w(TAG, "SetChatPermissions failed", it)
+            false
+        }
+    }
+
+    override suspend fun fetchGroupMembers(chatId: Long): List<TelegramGroupMember> {
+        if (chatId >= 0L) return emptyList()
+        awaitAuthorized()
+        return runCatching {
+            val chat = paced { send<TdApi.Chat>(TdApi.GetChat(chatId)) }
+            val rawMembers: Array<TdApi.ChatMember> = when (val type = chat.type) {
+                is TdApi.ChatTypeSupergroup -> {
+                    paced {
+                        send<TdApi.ChatMembers>(
+                            TdApi.GetSupergroupMembers(
+                                type.supergroupId,
+                                TdApi.SupergroupMembersFilterRecent(),
+                                0,
+                                200
+                            )
+                        )
+                    }.members
+                }
+                is TdApi.ChatTypeBasicGroup -> {
+                    paced {
+                        send<TdApi.BasicGroupFullInfo>(
+                            TdApi.GetBasicGroupFullInfo(type.basicGroupId)
+                        )
+                    }.members
+                }
+                else -> emptyArray()
+            }
+            rawMembers.mapNotNull { member ->
+                val userId = (member.memberId as? TdApi.MessageSenderUser)?.userId ?: return@mapNotNull null
+                val user = runCatching { paced { send<TdApi.User>(TdApi.GetUser(userId)) } }.getOrNull()
+                val role = when (member.status) {
+                    is TdApi.ChatMemberStatusCreator -> "OWNER"
+                    is TdApi.ChatMemberStatusAdministrator -> "ADMIN"
+                    else -> "MEMBER"
+                }
+                TelegramGroupMember(
+                    userId = userId,
+                    displayName = user?.displayNameOrNull() ?: "User #$userId",
+                    username = user?.primaryUsernameOrNull(),
+                    role = role
+                )
+            }
+        }.getOrElse {
+            SafeLog.w(TAG, "fetchGroupMembers failed", it)
+            emptyList()
+        }
+    }
+
+    override suspend fun joinGroupByInviteOrUsername(linkOrUsername: String): TelegramGroupInfo? {
+        awaitAuthorized()
+        val raw = linkOrUsername.trim()
+        if (raw.isEmpty()) return null
+        return runCatching {
+            val chat: TdApi.Chat = if (raw.contains("t.me/") || raw.contains("+") || raw.contains("/")) {
+                val info = paced { send<TdApi.ChatInviteLinkInfo>(TdApi.CheckChatInviteLink(raw)) }
+                val joined = runCatching { paced { send<TdApi.Chat>(TdApi.JoinChatByInviteLink(raw)) } }.getOrNull()
+                joined ?: paced { send<TdApi.Chat>(TdApi.GetChat(info.chatId)) }
+            } else {
+                val found = paced { send<TdApi.Chat>(TdApi.SearchPublicChat(raw.removePrefix("@"))) }
+                runCatching { paced { send<TdApi.Ok>(TdApi.JoinChat(found.id)) } }
+                paced { send<TdApi.Chat>(TdApi.GetChat(found.id)) }
+            }
+            val sgId = (chat.type as? TdApi.ChatTypeSupergroup)?.supergroupId ?: 0L
+            val memberCount = if (sgId != 0L) {
+                runCatching { paced { send<TdApi.Supergroup>(TdApi.GetSupergroup(sgId)) }.memberCount }
+                    .getOrDefault(1)
+            } else 1
+            TelegramGroupInfo(
+                chatId = chat.id,
+                supergroupId = sgId,
+                title = chat.title ?: "DewanGram Group",
+                username = if (!raw.contains("/")) raw.removePrefix("@") else null,
+                inviteLink = if (raw.contains("t.me/")) raw else null,
+                memberCount = memberCount.coerceAtLeast(1)
+            )
+        }.getOrElse {
+            SafeLog.w(TAG, "joinGroupByInviteOrUsername failed", it)
+            null
+        }
+    }
+
+    override suspend fun leaveOrDeleteGroup(chatId: Long): Boolean {
+        if (chatId >= 0L) return false
+        awaitAuthorized()
+        return runCatching {
+            paced { send<TdApi.Ok>(TdApi.DeleteChat(chatId)) }
+            true
+        }.getOrElse {
+            runCatching {
+                val me = getCurrentUser().id
+                paced {
+                    send<TdApi.Ok>(
+                        TdApi.SetChatMemberStatus(
+                            chatId,
+                            TdApi.MessageSenderUser(me),
+                            TdApi.ChatMemberStatusLeft()
+                        )
+                    )
+                }
+                true
+            }.getOrDefault(false)
+        }
+    }
+
+    private fun TdApi.User.displayNameOrNull(): String? =
+        listOfNotNull(
+            firstName.takeIf { it.isNotBlank() },
+            lastName.takeIf { it.isNotBlank() }
+        ).joinToString(" ").ifBlank { null }
+
+    private fun TdApi.User.primaryUsernameOrNull(): String? =
+        usernames?.editableUsername?.takeIf { it.isNotBlank() }
+            ?: usernames?.activeUsernames?.firstOrNull()?.takeIf { it.isNotBlank() }
+
     private fun TdApi.AuthenticationCodeType.toChannel(): CodeDeliveryChannel = when (this) {
         is TdApi.AuthenticationCodeTypeTelegramMessage -> CodeDeliveryChannel.TELEGRAM_APP
         is TdApi.AuthenticationCodeTypeSms -> CodeDeliveryChannel.SMS

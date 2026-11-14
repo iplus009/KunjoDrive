@@ -101,6 +101,11 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        val dataUri = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.data
+        if (dataUri != null && (dataUri.scheme == "dewan" || dataUri.scheme == "kunjodrive")) {
+            destination.value = "${com.novo.drive.core.common.NotificationDestinations.DEWAN_JOIN_PREFIX}$dataUri"
+            return
+        }
         val shared = sharedUris(intent)
         val sharedText = intent?.takeIf { it.action == Intent.ACTION_SEND }
             ?.getStringExtra(Intent.EXTRA_TEXT)

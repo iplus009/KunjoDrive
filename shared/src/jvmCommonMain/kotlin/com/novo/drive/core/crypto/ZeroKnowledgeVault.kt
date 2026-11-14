@@ -48,9 +48,13 @@ object ZeroKnowledgeVault {
         val salt = if (existingSaltBase64.isNullOrBlank()) {
             newSalt()
         } else {
-            runCatching {
+            val decoded = runCatching {
                 Base64.getDecoder().decode(existingSaltBase64.trim())
-            }.getOrElse { newSalt() }
+            }.getOrElse { cause ->
+                throw IllegalArgumentException("Malformed Base64 encryption salt", cause)
+            }
+            require(decoded.isNotEmpty()) { "Decoded encryption salt must not be empty" }
+            decoded
         }
 
         val spec = PBEKeySpec(password, salt, KDF_ITERATIONS, DERIVED_KEY_BITS)

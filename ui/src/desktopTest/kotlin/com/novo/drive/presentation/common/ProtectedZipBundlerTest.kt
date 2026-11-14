@@ -88,4 +88,18 @@ class ProtectedZipBundlerTest {
             )
         )
     }
+
+    @Test
+    fun `blank password rejects AES encryption instead of producing unprotected zip`() = runBlocking {
+        val sample = File(outDir, "secret.txt").apply { writeText("top secret") }
+        assertNull(
+            IplusProtectedZipBundler.createZip(
+                outputDir = outDir,
+                archiveBaseName = "weak",
+                localFilePaths = listOf(sample.absolutePath),
+                password = "   ",
+                encryptAes256 = true
+            )
+        )
+    }
 }

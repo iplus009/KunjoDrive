@@ -4,6 +4,7 @@ import com.novo.drive.domain.model.Country
 import com.novo.drive.domain.model.LinkMetadata
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 
 /** No TDLib types cross this boundary. */
 interface TelegramClient {
@@ -155,4 +156,28 @@ interface TelegramClient {
      * @return the Telegram chatId for the private chat. Throws on failure.
      */
     suspend fun createPrivateChat(userId: Long): Long
+
+    /** Emits incoming (non-outgoing, non-channel) DM and group messages received via TDLib. */
+    fun incomingMessages(): Flow<IncomingTelegramMessage> = emptyFlow()
+
+    /** Creates a real Telegram supergroup for DewanGram and generates an invite link. */
+    suspend fun createDewangramGroup(title: String, username: String? = null): TelegramGroupInfo? = null
+
+    suspend fun addChatMember(chatId: Long, userId: Long): Boolean = false
+
+    suspend fun removeChatMember(chatId: Long, userId: Long): Boolean = false
+
+    suspend fun setGroupAdminRole(chatId: Long, userId: Long, isAdmin: Boolean): Boolean = false
+
+    suspend fun updateGroupTitle(chatId: Long, title: String): Boolean = false
+
+    suspend fun updateGroupUsername(chatId: Long, username: String?): Boolean = false
+
+    suspend fun setGroupReadOnly(chatId: Long, readOnly: Boolean): Boolean = false
+
+    suspend fun fetchGroupMembers(chatId: Long): List<TelegramGroupMember> = emptyList()
+
+    suspend fun joinGroupByInviteOrUsername(linkOrUsername: String): TelegramGroupInfo? = null
+
+    suspend fun leaveOrDeleteGroup(chatId: Long): Boolean = false
 }

@@ -101,6 +101,9 @@ fun IplusChatDetailScreen(
     recentDriveFiles: List<DriveFile> = emptyList(),
     isReadOnly: Boolean = false,
     canSendInReadOnly: Boolean = true,
+    flagSecureEnabled: Boolean = false,
+    onFlagSecureChanged: (Boolean) -> Unit = {},
+    onMarkViewOnceViewed: (Long) -> Unit = {},
     onBack: () -> Unit,
     onSendMessage: (text: String, driveLink: String?, isViewOnce: Boolean) -> Unit,
     onOpenGroupSettings: () -> Unit,
@@ -117,7 +120,6 @@ fun IplusChatDetailScreen(
     val fileOpener = LocalFileOpener.current
 
     // Security toggles for sharing
-    var isFlagSecureEnabled by remember { mutableStateOf(true) }
     var isViewOnceEnabled by remember { mutableStateOf(false) }
     var selectedCloudFileName by remember { mutableStateOf<String?>(null) }
     var selectedCloudFileLink by remember { mutableStateOf<String?>(null) }
@@ -224,6 +226,7 @@ fun IplusChatDetailScreen(
                     IplusMessageBubble(
                         message = msg,
                         isFamilyMember = isFamilyMember,
+                        onMarkViewOnceViewed = { onMarkViewOnceViewed(msg.messageId) },
                         onPlayVideo = { link ->
                             val fileId = link.removePrefix("kunjo://file/")
                             val targetFile = recentDriveFiles.firstOrNull { it.id == fileId || link.contains(it.id) || link.contains(it.name) }
@@ -257,7 +260,7 @@ fun IplusChatDetailScreen(
                             if (isFamilyMember && (targetFile?.sizeBytes ?: 0L) > MAX_SUBACCOUNT_FILE_BYTES) {
                                 policyBlockAlert = "⛔ সাব-অ্যাকাউন্টে ২ GB-এর চেয়ে বড় ফাইল যুক্ত করা সম্পূর্ণ নিষিদ্ধ।"
                             } else {
-                                onSaveToMyDrive(fileId)
+                                onSaveToMyDrive(link)
                             }
                         }
                     )
@@ -495,7 +498,7 @@ fun IplusChatDetailScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("🛡️ স্ক্রিনশট ব্লক (FLAG_SECURE)", fontSize = 12.sp)
                         }
-                        Switch(checked = isFlagSecureEnabled, onCheckedChange = { isFlagSecureEnabled = it })
+                        Switch(checked = flagSecureEnabled, onCheckedChange = onFlagSecureChanged)
                     }
 
                     Row(
@@ -599,7 +602,7 @@ fun IplusChatDetailScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("🛡️ স্ক্রিনশট ব্লক (FLAG_SECURE)", fontSize = 12.sp)
                         }
-                        Switch(checked = isFlagSecureEnabled, onCheckedChange = { isFlagSecureEnabled = it })
+                        Switch(checked = flagSecureEnabled, onCheckedChange = onFlagSecureChanged)
                     }
 
                     Row(
@@ -718,6 +721,7 @@ fun IplusChatDetailScreen(
 fun IplusMessageBubble(
     message: IplusMessageEntity,
     isFamilyMember: Boolean = false,
+    onMarkViewOnceViewed: () -> Unit = {},
     onPlayVideo: (String) -> Unit,
     onPlayAudio: (String) -> Unit,
     onOpenPdf: (String) -> Unit,
@@ -725,6 +729,10 @@ fun IplusMessageBubble(
 ) {
     val isOut = message.isOutgoing
     val fileOpener = LocalFileOpener.current
+    var revealedThisSession by remember(message.messageId) { mutableStateOf(false) }
+    val isViewOnceLocked = message.isViewOnce && message.isViewed && !isOut && !revealedThisSession
+    val needsTapToReveal = message.isViewOnce && !message.isViewed && !isOut && !revealedThisSession &&
+        !message.text.isNullOrBlank() && message.driveLink.isNullOrBlank()
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -755,7 +763,7 @@ fun IplusMessageBubble(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            "View Once (একবার দেখলেই লিংক এক্সপায়ার)",
+                            if (isViewOnceLocked) "View Once (মেয়াদ শেষ)" else "View Once (একবার দেখলেই লিংক এক্সপায়ার)",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFFFB300)
@@ -763,6 +771,22 @@ fun IplusMessageBubble(
                     }
                 }
 
+                if (isViewOnceLocked) {
+                    Text(
+                        text = "⏱️ এই View-Once বার্তাটি দেখা হয়ে গেছে ও লক করা হয়েছে।",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = (if (isOut) Color.White else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.7f)
+                    )
+                } else if (needsTapToReveal) {
+                    TextButton(
+                        onClick = {
+                            revealedThisSession = true
+                            onMarkViewOnceViewed()
+                        }
+                    ) {
+                        Text("👁️ একবার দেখতে ট্যাপ করুন", color = Color(0xFFFFB300), fontWeight = FontWeight.Bold)
+                    }
+                } else {
                 // Text Content
                 val msgText = message.text
                 if (!msgText.isNullOrBlank()) {
@@ -776,13 +800,20 @@ fun IplusMessageBubble(
                 // If message has a file or media link
                 message.driveLink?.let { link ->
                     Spacer(modifier = Modifier.height(8.dp))
-                    val lowerLink = link.lowercase()
-                    val fileName = link.substringAfterLast('/').substringAfterLast('\\').removePrefix("file://")
+                    val isTgRemote = link.startsWith("tgremote://")
+                    val tgParts = if (isTgRemote) link.removePrefix("tgremote://").split("|") else emptyList()
+                    val fileName = if (isTgRemote) {
+                        tgParts.getOrNull(1).orEmpty().ifBlank { "DewanGram_File" }
+                    } else {
+                        link.substringAfterLast('/').substringAfterLast('\\').removePrefix("file://")
+                    }
+                    val tgMime = tgParts.getOrNull(2).orEmpty()
+                    val lowerLink = if (isTgRemote) "$fileName $tgMime".lowercase() else link.lowercase()
                     val isImage = lowerLink.endsWith(".jpg") || lowerLink.endsWith(".png") || lowerLink.endsWith(".jpeg") ||
                             lowerLink.endsWith(".webp") || lowerLink.contains("image")
                     val isApk = lowerLink.endsWith(".apk") || lowerLink.contains("android.package-archive")
-                    val isVideo = lowerLink.endsWith(".mp4") || lowerLink.endsWith(".mkv") || lowerLink.contains("vid_")
-                    val isAudio = lowerLink.endsWith(".mp3") || lowerLink.endsWith(".m4a") || lowerLink.contains("aud_")
+                    val isVideo = lowerLink.endsWith(".mp4") || lowerLink.endsWith(".mkv") || lowerLink.contains("vid_") || lowerLink.contains("video/")
+                    val isAudio = lowerLink.endsWith(".mp3") || lowerLink.endsWith(".m4a") || lowerLink.contains("aud_") || lowerLink.contains("audio/")
                     val isPdf = lowerLink.endsWith(".pdf") || lowerLink.contains("doc_")
 
                     Surface(
@@ -791,7 +822,7 @@ fun IplusMessageBubble(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(10.dp)) {
-                            if (isImage) {
+                            if (isImage && !isTgRemote) {
                                 val localFilePath = link.removePrefix("file://")
                                 val imageFile = File(localFilePath)
                                 AsyncImage(
@@ -857,15 +888,19 @@ fun IplusMessageBubble(
                             ) {
                                 Button(
                                     onClick = {
+                                        if (message.isViewOnce && !message.isViewed && !isOut) {
+                                            revealedThisSession = true
+                                            onMarkViewOnceViewed()
+                                        }
                                         val localFilePath = link.removePrefix("file://")
                                         val localFile = File(localFilePath)
-                                        if (isApk && localFile.exists()) {
+                                        if (isApk && !isTgRemote && localFile.exists()) {
                                             fileOpener.openFile(localFile)
                                         } else if (isVideo) {
-                                            if (localFile.exists()) fileOpener.openFile(localFile) else onPlayVideo(link)
+                                            if (!isTgRemote && localFile.exists()) fileOpener.openFile(localFile) else onPlayVideo(link)
                                         } else if (isAudio) {
-                                            if (localFile.exists()) fileOpener.openFile(localFile) else onPlayAudio(link)
-                                        } else if (localFile.exists()) {
+                                            if (!isTgRemote && localFile.exists()) fileOpener.openFile(localFile) else onPlayAudio(link)
+                                        } else if (!isTgRemote && localFile.exists()) {
                                             fileOpener.openFile(localFile)
                                         } else {
                                             onOpenPdf(link)
@@ -886,7 +921,13 @@ fun IplusMessageBubble(
 
                                 if (!isOut) {
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    IconButton(onClick = { onSaveToMyDrive(link) }) {
+                                    IconButton(onClick = {
+                                        if (message.isViewOnce && !message.isViewed && !isOut) {
+                                            revealedThisSession = true
+                                            onMarkViewOnceViewed()
+                                        }
+                                        onSaveToMyDrive(link)
+                                    }) {
                                         Icon(
                                             Icons.Default.CloudDownload,
                                             contentDescription = "Save to My Drive",
@@ -897,6 +938,7 @@ fun IplusMessageBubble(
                             }
                         }
                     }
+                }
                 }
 
                 // Timestamp & Ticks (Real dynamic time)

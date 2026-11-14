@@ -14,6 +14,7 @@ data class PreviewSequence(
     val favoritesOnly: Boolean = false,
     val availableOfflineOnly: Boolean = false,
     val hiddenOnly: Boolean = false,
+    val secondVaultOnly: Boolean = false,
     val archivedOnly: Boolean = false,
     val sortField: FileSortField = FileSortField.NAME,
     val sortDirection: SortDirection = SortDirection.ASCENDING
@@ -29,6 +30,7 @@ data class PreviewSequence(
         favoritesOnly = favoritesOnly,
         availableOfflineOnly = availableOfflineOnly,
         hiddenOnly = hiddenOnly,
+        secondVaultOnly = secondVaultOnly,
         archivedOnly = archivedOnly,
         sortField = sortField.name,
         sortDescending = sortDirection == SortDirection.DESCENDING

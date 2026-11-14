@@ -136,7 +136,10 @@ fun FileInfoSheet(
             confirmButton = {
                 Button(
                     onClick = {
-                        val path = file.localPath ?: return@Button
+                        val path = file.localPath?.takeIf { File(it).exists() } ?: run {
+                            zipStatusMessage = "লোকাল কপি পাওয়া যায়নি। আগে ফাইলটি ডাউনলোড করুন।"
+                            return@Button
+                        }
                         creatingZip = true
                         scope.launch {
                             val outDir = File(storagePaths.cacheDir, "protected_zips")

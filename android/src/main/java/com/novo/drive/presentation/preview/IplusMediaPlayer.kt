@@ -222,7 +222,7 @@ fun IplusMediaPlayer(
 
     val lifecycleOwner = LocalLifecycleOwner.current
     val backgroundAllowed by rememberUpdatedState(allowBackgroundPlayback)
-    DisposableEffect(lifecycleOwner, audioOnly) {
+    DisposableEffect(lifecycleOwner, player, audioOnly) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP && !backgroundAllowed && !audioOnly) {
                 player?.pause()
@@ -441,6 +441,15 @@ fun IplusMediaPlayer(
                         IplusPlayerResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                         IplusPlayerResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                         IplusPlayerResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    }
+                },
+                onReset = { view ->
+                    view.player = null
+                },
+                onRelease = { view ->
+                    view.player = null
+                    if (playerViewRef === view) {
+                        playerViewRef = null
                     }
                 },
                 modifier = Modifier.fillMaxSize()

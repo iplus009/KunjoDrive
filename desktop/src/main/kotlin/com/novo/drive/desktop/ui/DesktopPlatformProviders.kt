@@ -121,7 +121,9 @@ fun ProvideDesktopPlatformActions(content: @Composable () -> Unit) {
         }
     }
     val deviceOwnerGate = remember {
-        DeviceOwnerGate { _, _, _, onConfirmed -> onConfirmed() }
+        DeviceOwnerGate { _, _, onDenied, _ ->
+            onDenied("ডেস্কটপ ওএসে বায়োমেট্রিক বা ডিভাইস ওনার ভেরিফিকেশন সাপোর্টেড নয়। অনুগ্রহ করে ভল্ট পিন ব্যবহার করুন।")
+        }
     }
 
     val appIcon: @Composable (Modifier) -> Unit = { modifier ->

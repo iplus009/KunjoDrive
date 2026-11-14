@@ -28,6 +28,8 @@ object IplusProtectedZipBundler {
         val sources = localFilePaths.map(::File).filter { it.exists() && it.isFile }
         if (sources.isEmpty()) return@withContext null
 
+        if (encryptAes256 && password.isBlank()) return@withContext null
+
         outputDir.mkdirs()
         val safeBase = archiveBaseName
             .replace(Regex("[\\\\/:*?\"<>|]"), "_")
@@ -36,7 +38,7 @@ object IplusProtectedZipBundler {
         val target = File(outputDir, "$safeBase-protected.zip")
         if (target.exists()) target.delete()
 
-        val params = ZipParameters().apply {
+        val baseParams = ZipParameters().apply {
             when (compressionLevel) {
                 0 -> {
                     compressionMethod = CompressionMethod.STORE
@@ -51,23 +53,44 @@ object IplusProtectedZipBundler {
                 }
             }
 
-            if (encryptAes256 && password.isNotBlank()) {
+            if (encryptAes256) {
                 isEncryptFiles = true
                 encryptionMethod = EncryptionMethod.AES
                 aesKeyStrength = AesKeyStrength.KEY_STRENGTH_256
             }
         }
 
-        val zipFile = if (encryptAes256 && password.isNotBlank()) {
+        val zipFile = if (encryptAes256) {
             ZipFile(target, password.toCharArray())
         } else {
             ZipFile(target)
         }
 
-        zipFile.use { zip ->
-            for (src in sources) {
-                zip.addFile(src, params)
+        val usedEntryNames = mutableSetOf<String>()
+        try {
+            zipFile.use { zip ->
+                for (src in sources) {
+                    val baseName = src.name
+                    var entryName = baseName
+                    if (!usedEntryNames.add(entryName)) {
+                        val dot = baseName.lastIndexOf('.')
+                        val stem = if (dot > 0) baseName.substring(0, dot) else baseName
+                        val ext = if (dot > 0) baseName.substring(dot) else ""
+                        var counter = 2
+                        while (!usedEntryNames.add("${stem}_$counter$ext")) {
+                            counter++
+                        }
+                        entryName = "${stem}_$counter$ext"
+                    }
+                    val entryParams = ZipParameters(baseParams).apply {
+                        fileNameInZip = entryName
+                    }
+                    zip.addFile(src, entryParams)
+                }
             }
+        } catch (t: Throwable) {
+            target.delete()
+            throw t
         }
         target.takeIf { it.exists() && it.length() > 0L }
     }

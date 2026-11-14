@@ -83,6 +83,7 @@ class AndroidIplusAudioPlayer(
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var equalizer: Equalizer? = null
     private var progressTickerJob: Job? = null
+    private var playJob: Job? = null
 
     init {
         playerScope.launch {
@@ -225,7 +226,8 @@ class AndroidIplusAudioPlayer(
     }
 
     override fun playAudio(fileId: String, title: String, artist: String?, streamUri: String?) {
-        playerScope.launch {
+        playJob?.cancel()
+        playJob = playerScope.launch {
             _isMiniPlayerVisible.value = true
             val file = withContext(dispatchers.io) {
                 fileRepository.getFile(fileId)
@@ -297,10 +299,10 @@ class AndroidIplusAudioPlayer(
                         val parts = withContext(dispatchers.io) {
                             filePartDao.partsOf(file.id)
                         }
-                        val factory = if (parts.isNotEmpty()) {
-                            val mediaParts = parts.mapNotNull { p ->
-                                p.remoteFileId?.let { MediaPart(it, p.plainOffset, p.plainSize) }
-                            }
+                        val mediaParts = parts.mapNotNull { p ->
+                            p.remoteFileId?.let { MediaPart(it, p.plainOffset, p.plainSize) }
+                        }
+                        val factory = if (mediaParts.isNotEmpty() && mediaParts.size == parts.size) {
                             dataSourceFactory.createParted(
                                 parts = mediaParts,
                                 encrypted = file.isEncrypted
@@ -452,6 +454,8 @@ class AndroidIplusAudioPlayer(
     }
 
     fun release() {
+        playJob?.cancel()
+        playJob = null
         playerScope.launch(dispatchers.main) {
             stopTicker()
             runCatching { loudnessEnhancer?.release() }

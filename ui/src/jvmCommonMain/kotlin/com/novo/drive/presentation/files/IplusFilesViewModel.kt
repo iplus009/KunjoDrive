@@ -88,6 +88,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -832,11 +833,15 @@ class IplusFilesViewModel(
         compressionLevel: Int = 1
     ) {
         val ids = selection.value.toList()
+        if (encryptAes256 && password.isBlank()) {
+            _messages.tryEmit(UiText.Plain("AES-256 সুরক্ষিত জিপের জন্য পাসওয়ার্ড দিন"))
+            return
+        }
         clearSelection()
         viewModelScope.launch {
             _working.value = UiText.Plain("আর্কাইভ প্রস্তুত করা হচ্ছে...")
             val files = fileRepository.getFiles(ids)
-            val localPaths = files.mapNotNull { it.localPath }
+            val localPaths = files.mapNotNull { it.localPath }.filter { File(it).exists() }
             if (localPaths.isEmpty()) {
                 _working.value = null
                 _messages.tryEmit(UiText.Plain("লক জিপ তৈরির জন্য অন্তত একটি লোকাল ফাইল থাকা প্রয়োজন"))

@@ -116,6 +116,15 @@ class LocalStreamBridgeServerTest {
         assertEquals(payload.sliceArray(0..3).toList(), ok.bodyBytes.toList())
     }
 
+    @Test
+    fun `out of bounds range returns 416 Range Not Satisfiable`() = runBlocking {
+        seedFile("oob")
+        server.start(0)
+
+        val oob = get("/stream/oob?pin=2468", range = "bytes=999999-1000010")
+        assertEquals(416, oob.code)
+    }
+
     private suspend fun seedFile(
         id: String,
         isHidden: Boolean = false,

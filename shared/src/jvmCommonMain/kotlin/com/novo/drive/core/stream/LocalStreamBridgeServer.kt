@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -35,6 +36,7 @@ import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.Base64
 
 data class StreamBridgeStatus(
@@ -64,6 +66,7 @@ class LocalStreamBridgeServer(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val random = SecureRandom()
     private val failedAttempts = ConcurrentHashMap<String, Pair<Int, Long>>()
+    private val activeConnectionCount = AtomicInteger(0)
     private var serverSocket: ServerSocket? = null
     private var acceptJob: Job? = null
 
@@ -114,13 +117,13 @@ class LocalStreamBridgeServer(
         acceptJob = null
         runCatching { serverSocket?.close() }
         serverSocket = null
-        _status.value = _status.value.copy(running = false, activeConnections = 0)
+        activeConnectionCount.set(0)
+        _status.update { it.copy(running = false, activeConnections = 0) }
     }
 
     private fun handleClient(socket: Socket) {
-        _status.value = _status.value.copy(
-            activeConnections = (_status.value.activeConnections + 1).coerceAtLeast(1)
-        )
+        val currentConnections = activeConnectionCount.incrementAndGet()
+        _status.update { it.copy(activeConnections = currentConnections) }
         try {
             socket.soTimeout = 30_000
             val input = BufferedInputStream(socket.getInputStream())
@@ -205,9 +208,8 @@ class LocalStreamBridgeServer(
         } catch (_: Throwable) {
         } finally {
             runCatching { socket.close() }
-            _status.value = _status.value.copy(
-                activeConnections = (_status.value.activeConnections - 1).coerceAtLeast(0)
-            )
+            val remainingConnections = activeConnectionCount.decrementAndGet().coerceAtLeast(0)
+            _status.update { it.copy(activeConnections = remainingConnections) }
         }
     }
 
@@ -224,6 +226,13 @@ class LocalStreamBridgeServer(
         return fileDao.observeList(query).first().filter { !it.isEncrypted }
     }
 
+    private data class ByteRange(
+        val start: Long,
+        val end: Long,
+        val isPartial: Boolean,
+        val unsatisfiable: Boolean = false
+    )
+
     private fun streamEntity(
         output: OutputStream,
         method: String,
@@ -237,7 +246,18 @@ class LocalStreamBridgeServer(
             return
         }
 
-        val (start, end, isPartial) = parseRange(rangeHeader, totalSize)
+        val range = parseRange(rangeHeader, totalSize)
+        if (range.unsatisfiable) {
+            val resp = "HTTP/1.1 416 Range Not Satisfiable\r\n" +
+                    "Content-Range: bytes */$totalSize\r\n" +
+                    "Content-Length: 0\r\nConnection: close\r\n\r\n"
+            output.write(resp.encodeToByteArray())
+            output.flush()
+            return
+        }
+        val start = range.start
+        val end = range.end
+        val isPartial = range.isPartial
         val contentLength = (end - start + 1).coerceAtLeast(0L)
         val statusLine = if (isPartial) "206 Partial Content" else "200 OK"
         val safeMime = entity.mimeType.ifBlank { "application/octet-stream" }
@@ -283,21 +303,27 @@ class LocalStreamBridgeServer(
             val resolved = telegramClient.resolveFile(remoteFileId)
             var cursor = start
             val chunkSize = 256L * 1024L
+            var lastRequestedOffset = start
             telegramClient.requestFileRange(resolved.fileId, start, contentLength)
             while (cursor <= end) {
                 val want = minOf(chunkSize, end - cursor + 1)
                 var attempts = 0
                 var chunk: ByteArray? = null
-                while (attempts < 40) {
+                while (attempts < 200) {
                     val info = telegramClient.getFileInfo(resolved.fileId)
                     val availableEnd = info.downloadOffset + info.downloadedPrefixSize
-                    if (info.isDownloadingCompleted || (info.downloadOffset <= cursor && availableEnd >= cursor + want)) {
+                    val availableBytes = (availableEnd - cursor).coerceAtLeast(0L)
+                    if (info.isDownloadingCompleted || (info.downloadOffset <= cursor && availableBytes > 0L)) {
+                        val readCount = if (info.isDownloadingCompleted) want else minOf(want, availableBytes)
                         chunk = runCatching {
-                            telegramClient.readFilePart(resolved.fileId, cursor, want)
+                            telegramClient.readFilePart(resolved.fileId, cursor, readCount)
                         }.getOrNull()
                         if (chunk != null && chunk.isNotEmpty()) break
-                    } else {
-                        telegramClient.requestFileRange(resolved.fileId, cursor, end - cursor + 1)
+                    } else if (!info.isDownloadingActive || cursor < info.downloadOffset || cursor > availableEnd + chunkSize) {
+                        if (lastRequestedOffset != cursor) {
+                            lastRequestedOffset = cursor
+                            telegramClient.requestFileRange(resolved.fileId, cursor, end - cursor + 1)
+                        }
                     }
                     delay(150)
                     attempts++
@@ -310,26 +336,34 @@ class LocalStreamBridgeServer(
         }
     }
 
-    private fun parseRange(header: String?, total: Long): Triple<Long, Long, Boolean> {
+    private fun parseRange(header: String?, total: Long): ByteRange {
         if (header.isNullOrBlank() || !header.startsWith("bytes=")) {
-            return Triple(0L, total - 1, false)
+            return ByteRange(0L, total - 1, false)
         }
         val spec = header.removePrefix("bytes=").substringBefore(',')
         val dash = spec.indexOf('-')
-        if (dash < 0) return Triple(0L, total - 1, false)
+        if (dash < 0) return ByteRange(0L, total - 1, false)
         val startPart = spec.substring(0, dash).trim()
         val endPart = spec.substring(dash + 1).trim()
         return if (startPart.isEmpty()) {
             // Suffix range "bytes=-N": the last N bytes of the file.
-            val suffix = endPart.toLongOrNull()?.coerceAtLeast(0L) ?: 0L
-            if (suffix <= 0L) return Triple(0L, total - 1, false)
+            val suffix = endPart.toLongOrNull() ?: return ByteRange(0L, total - 1, false, unsatisfiable = true)
+            if (suffix <= 0L) return ByteRange(0L, total - 1, false, unsatisfiable = true)
             val start = (total - suffix).coerceAtLeast(0L)
-            Triple(start, total - 1, true)
+            ByteRange(start, total - 1, true)
         } else {
-            val start = startPart.toLongOrNull()?.coerceIn(0L, total - 1) ?: 0L
-            if (start > total - 1) return Triple(0L, total - 1, false)
-            val end = endPart.toLongOrNull()?.coerceIn(start, total - 1) ?: (total - 1)
-            Triple(start, end, true)
+            val rawStart = startPart.toLongOrNull() ?: return ByteRange(0L, total - 1, false, unsatisfiable = true)
+            if (rawStart < 0L || rawStart >= total) {
+                return ByteRange(0L, total - 1, false, unsatisfiable = true)
+            }
+            val end = if (endPart.isEmpty()) {
+                total - 1
+            } else {
+                val rawEnd = endPart.toLongOrNull() ?: return ByteRange(0L, total - 1, false, unsatisfiable = true)
+                if (rawEnd < rawStart) return ByteRange(0L, total - 1, false, unsatisfiable = true)
+                rawEnd.coerceAtMost(total - 1)
+            }
+            ByteRange(rawStart, end, true)
         }
     }
 
@@ -343,7 +377,10 @@ class LocalStreamBridgeServer(
         val queryPin = query.split('&').firstOrNull { it.startsWith("pin=") }?.substringAfter("pin=")
         if (queryPin != null && MessageDigest.isEqual(queryPin.encodeToByteArray(), pinBytes)) return true
         val cookie = headers["cookie"].orEmpty()
-        val cookiePin = cookie.split(';').map { it.trim() }.firstOrNull { it.startsWith("novo_pin=") }?.substringAfter("novo_pin=")
+        val cookiePin = cookie.split(';')
+            .map { it.trim() }
+            .firstOrNull { it.startsWith("kunjo_pin=") || it.startsWith("novo_pin=") }
+            ?.substringAfter('=')
         if (cookiePin != null && MessageDigest.isEqual(cookiePin.encodeToByteArray(), pinBytes)) return true
         val auth = headers["authorization"].orEmpty()
         if (auth.startsWith("Basic ", ignoreCase = true)) {

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.novo.drive.core.common.AppResult
 import com.novo.drive.core.network.SupabaseRestClient
+import com.novo.drive.core.telegram.TelegramAuthState
 import com.novo.drive.data.repository.KunjoAuthRepository
 import com.novo.drive.data.repository.KunjoAuthResult
 import com.novo.drive.domain.repository.TelegramAuthRepository
@@ -121,6 +122,15 @@ class KunjoAuthViewModel(
                 }
                 return@launch
             }
+            if (existing.telegram_user_id == null || existing.telegram_user_id == 0L) {
+                _uiState.update {
+                    it.copy(
+                        isSendingForgotOtp = false,
+                        forgotDialogError = "এই অ্যাকাউন্টে ভেরিফাইড টেলিগ্রাম আইডি লিংক করা নেই, তাই ওটিপি দিয়ে রিসেট করা সম্ভব নয়।"
+                    )
+                }
+                return@launch
+            }
 
             when (telegramAuthRepository.submitPhoneNumber(cleanPhone)) {
                 is AppResult.Success -> {
@@ -172,10 +182,22 @@ class KunjoAuthViewModel(
             val codeResult = telegramAuthRepository.submitCode(cleanCode)
             when (codeResult) {
                 is AppResult.Success -> {
+                    if (telegramAuthRepository.authState.value !is TelegramAuthState.Ready) {
+                        telegramAuthRepository.logout()
+                        _uiState.update {
+                            it.copy(
+                                isResettingPassword = false,
+                                forgotDialogError = "টেলিগ্রাম ২-ধাপ পাসওয়ার্ড (2FA) সক্রিয় থাকায় ভেরিফিকেশন সম্পন্ন হয়নি। অ্যাপের ভেতর থেকে পাসওয়ার্ড পরিবর্তন করুন।"
+                            )
+                        }
+                        return@launch
+                    }
+                    val currentTgUser = (telegramAuthRepository.getCurrentUser() as? AppResult.Success)?.value
                     val resetResult = authRepository.resetPassword(
                         username = cleanUser,
                         newPassword = newPass,
-                        freshSessionString = ""
+                        freshSessionString = "",
+                        verifiedTelegramUserId = currentTgUser?.id
                     )
                     when (resetResult) {
                         is KunjoAuthResult.Success -> {
@@ -189,6 +211,7 @@ class KunjoAuthViewModel(
                             onSuccess()
                         }
                         is KunjoAuthResult.Error -> {
+                            telegramAuthRepository.logout()
                             _uiState.update {
                                 it.copy(
                                     isResettingPassword = false,

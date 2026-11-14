@@ -53,6 +53,25 @@ class BufferedMediaByteSourceTest {
     }
 
     @Test
+    fun `negative position or non-positive count returns empty array`() = runBlocking {
+        val buffered = BufferedMediaByteSource(CountingSource(bytes), chunkSize = 1_000)
+
+        assertEquals(0, buffered.read(-1, 10).size)
+        assertEquals(0, buffered.read(0, 0).size)
+    }
+
+    @Test
+    fun `read spanning buffered chunk tail fulfills full requested count`() = runBlocking {
+        val inner = CountingSource(bytes)
+        val buffered = BufferedMediaByteSource(inner, chunkSize = 1_000)
+        buffered.read(0, 10)
+
+        val spanning = buffered.read(990, 25)
+        assertArrayEquals(bytes.copyOfRange(990, 1015), spanning)
+        assertEquals(2, inner.reads)
+    }
+
+    @Test
     fun `a jump outside the buffer fetches from the new position`() = runBlocking {
         val inner = CountingSource(bytes)
         val buffered = BufferedMediaByteSource(inner, chunkSize = 1_000)

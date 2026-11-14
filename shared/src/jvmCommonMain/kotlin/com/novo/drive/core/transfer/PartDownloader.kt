@@ -47,10 +47,11 @@ class PartDownloader(
         val stateFile = File(assemblyDir(), "$fileId.parts_done")
 
         val totalExpectedSize = parts.maxOf { it.plainOffset + it.plainSize }
+        val validPartIndices = parts.map { it.partIndex }.toSet()
 
         // Read already completed parts for seamless resume
         val completedIndices = withContext(dispatchers.io) {
-            readCompletedParts(stateFile, target, totalExpectedSize)
+            readCompletedParts(stateFile, target, totalExpectedSize, validPartIndices)
         }
 
         val remainingParts = parts.filter { it.partIndex !in completedIndices }
@@ -120,7 +121,15 @@ class PartDownloader(
                                         }
                                     } else {
                                         sourceFile.inputStream().channel.use { inChannel ->
-                                            inChannel.transferTo(0, inChannel.size(), channel)
+                                            val partSize = inChannel.size()
+                                            var copied = 0L
+                                            while (copied < partSize) {
+                                                val transferred = inChannel.transferTo(copied, partSize - copied, channel)
+                                                check(transferred > 0L) {
+                                                    "Short channel copy on part ${part.partIndex + 1} at $copied/$partSize"
+                                                }
+                                                copied += transferred
+                                            }
                                         }
                                     }
                                 }
@@ -155,14 +164,22 @@ class PartDownloader(
         }
     }
 
-    private fun readCompletedParts(stateFile: File, target: File, totalExpectedSize: Long): Set<Int> {
-        if (!target.exists() || !stateFile.exists()) {
-            if (!target.exists()) stateFile.delete()
+    private fun readCompletedParts(
+        stateFile: File,
+        target: File,
+        totalExpectedSize: Long,
+        validPartIndices: Set<Int>
+    ): Set<Int> {
+        if (!target.exists() || target.length() <= 0L || !stateFile.exists() ||
+            (totalExpectedSize > 0L && target.length() > totalExpectedSize)
+        ) {
+            if (!target.exists() || target.length() <= 0L) stateFile.delete()
             return emptySet()
         }
         return runCatching {
             stateFile.readLines()
                 .mapNotNull { it.trim().toIntOrNull() }
+                .filter { it in validPartIndices }
                 .toSet()
         }.getOrDefault(emptySet())
     }

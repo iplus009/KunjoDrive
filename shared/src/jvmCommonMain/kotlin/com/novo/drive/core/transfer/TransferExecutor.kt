@@ -188,7 +188,8 @@ class TransferExecutor(
                 encrypt = encrypt,
                 contentHash = contentHash,
                 supersededMessageId = supersededMessageId,
-                previewPath = previewPath
+                previewPath = previewPath,
+                safeUploadSpeedKbps = prefs.safeUploadSpeedKbps
             )
         }
 
@@ -340,8 +341,10 @@ class TransferExecutor(
         encrypt: Boolean,
         contentHash: String?,
         supersededMessageId: Long?,
-        previewPath: String?
+        previewPath: String?,
+        safeUploadSpeedKbps: Int
     ): TransferOutcome {
+        val startedAt = System.currentTimeMillis()
         val ticker = ProgressTicker()
         var baselineBytes: Long? = null
         var outcome: TransferOutcome =
@@ -354,8 +357,14 @@ class TransferExecutor(
                     when (event) {
                         is PartUploadEvent.Progress -> {
                             val now = System.currentTimeMillis()
-                            baselineBytes = recordProgress(
+                            val anchor = recordProgress(
                                 transfer.id, ticker, baselineBytes, event.transferredBytes, now
+                            )
+                            baselineBytes = anchor
+                            paceUploadSpeed(
+                                startedAt,
+                                (event.transferredBytes - anchor).coerceAtLeast(0L),
+                                safeUploadSpeedKbps
                             )
                             checkControl(transfer.id)
                         }

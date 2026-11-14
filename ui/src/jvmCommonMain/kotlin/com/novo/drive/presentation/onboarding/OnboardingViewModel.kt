@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.novo.drive.core.common.AppResult
 import com.novo.drive.core.family.FamilyAccessManager
+import com.novo.drive.core.family.NovoFamilyGrantPayload
 import com.novo.drive.core.telegram.CodeDeliveryChannel
 import com.novo.drive.core.telegram.TelegramAuthState
 import com.novo.drive.core.telegram.TelegramCredentials
@@ -51,6 +52,8 @@ class OnboardingViewModel(
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
+
+    private var pendingFamilyGrant: NovoFamilyGrantPayload? = null
 
     init {
         telegramAuthRepository.authState
@@ -150,18 +153,9 @@ class OnboardingViewModel(
     }
 
     fun start() {
+        pendingFamilyGrant = null
         viewModelScope.launch {
-            settingsRepository.update {
-                it.copy(
-                    accountRole = AccountRole.OWNER,
-                    familySlotIndex = 0,
-                    familyMemberName = "",
-                    familyQuotaBytes = 0L,
-                    familyExpiresAtMs = 0L,
-                    familyGrantSignature = "",
-                    familySubKeyBase64 = ""
-                )
-            }
+            familyAccessManager.clearFamilyGrantState()
         }
         _uiState.update {
             it.copy(
@@ -174,6 +168,7 @@ class OnboardingViewModel(
     }
 
     fun startFamilyLogin() {
+        pendingFamilyGrant = null
         _uiState.update {
             it.copy(
                 step = OnboardingStep.FAMILY_LOGIN,
@@ -186,6 +181,10 @@ class OnboardingViewModel(
     }
 
     fun backToWelcome() {
+        pendingFamilyGrant = null
+        viewModelScope.launch {
+            familyAccessManager.clearFamilyGrantState()
+        }
         _uiState.update {
             it.copy(
                 step = OnboardingStep.WELCOME,
@@ -204,6 +203,7 @@ class OnboardingViewModel(
             when (val result = familyAccessManager.acceptFamilyInvite(inviteToken, pairingPin)) {
                 is AppResult.Success -> {
                     val payload = result.value
+                    pendingFamilyGrant = payload
                     _uiState.update {
                         it.copy(
                             isFamilyFlow = true,
@@ -357,6 +357,11 @@ class OnboardingViewModel(
     }
 
     private suspend fun resolvePostAuthDestination() {
+        val grant = pendingFamilyGrant
+        if (grant != null) {
+            familyAccessManager.activateAcceptedGrant(grant)
+            pendingFamilyGrant = null
+        }
         val prefs = settingsRepository.preferences.first()
         if (prefs.isFamilyMember || _uiState.value.isFamilyFlow) {
             completeFamilyOnboarding()
@@ -471,9 +476,11 @@ class OnboardingViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isCheckingKunjoUsername = true, kunjoAccountError = null) }
+            val tgUserId = (telegramAuthRepository.getCurrentUser() as? AppResult.Success)?.value?.id
             val result = kunjoAuthRepository.registerUsernameOnly(
                 username = cleanUser,
-                storageChannelId = state.selectedChatId
+                storageChannelId = state.selectedChatId,
+                telegramUserId = tgUserId
             )
             when (result) {
                 is KunjoAuthResult.Success -> {

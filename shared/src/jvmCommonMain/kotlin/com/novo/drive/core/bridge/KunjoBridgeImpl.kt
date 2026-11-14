@@ -1,5 +1,6 @@
 package com.novo.drive.core.bridge
 
+import com.novo.drive.core.security.NativeSecurityBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -8,15 +9,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class KunjoBridgeImpl(
-    customMediaBridge: MediaBridge? = null
+    customMediaBridge: MediaBridge? = null,
+    customSecurityBridge: SecurityBridge? = null,
+    customTransferBridge: TransferBridge? = null,
+    customStorageBridge: StorageBridge? = null
 ) : KunjoBridge {
 
     private val bridgeScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    override val transfer: TransferBridge = DefaultTransferBridge()
+    override val transfer: TransferBridge = customTransferBridge ?: DefaultTransferBridge()
     override val media: MediaBridge = customMediaBridge ?: DefaultMediaBridge()
-    override val security: SecurityBridge = DefaultSecurityBridge()
-    override val storage: StorageBridge = DefaultStorageBridge()
+    override val security: SecurityBridge = customSecurityBridge ?: DefaultSecurityBridge()
+    override val storage: StorageBridge = customStorageBridge ?: DefaultStorageBridge()
 
     private class DefaultTransferBridge : TransferBridge {
         private val _uploads = MutableStateFlow(0)
@@ -149,8 +153,9 @@ class KunjoBridgeImpl(
         private val _ghostActive = MutableStateFlow(false)
         override val isGhostVaultActive: StateFlow<Boolean> = _ghostActive.asStateFlow()
 
-        override fun verifyVaultKey(key: String): Boolean = true
-        override fun isAppTampered(): Boolean = false
+        // Fail closed when no real SecurityBridge delegate is bound
+        override fun verifyVaultKey(key: String): Boolean = false
+        override fun isAppTampered(): Boolean = !NativeSecurityBridge.isRuntimeIntegrityValid()
     }
 
     private class DefaultStorageBridge : StorageBridge {

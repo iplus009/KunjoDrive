@@ -28,7 +28,8 @@ class KunjoAuthRepository(
 
     suspend fun registerUsernameOnly(
         username: String,
-        storageChannelId: Long? = null
+        storageChannelId: Long? = null,
+        telegramUserId: Long? = null
     ): KunjoAuthResult = withContext(Dispatchers.IO) {
         val cleanUser = username.trim().lowercase().removePrefix("@")
         if (cleanUser.length < 3) {
@@ -60,19 +61,32 @@ class KunjoAuthRepository(
                 device_model = System.getProperty("os.name") ?: "Android",
                 app_version = Secrets.APP_VERSION
             )
-            SupabaseRestClient.registerUser(dto)
+            val registered = SupabaseRestClient.registerUser(dto)
+            if (!registered) {
+                return@withContext KunjoAuthResult.Error("ক্লাউডে ইউজারনেম সংরক্ষণ করা যায়নি। ইন্টারনেট সংযোগ চেক করে পুনরায় চেষ্টা করুন।")
+            }
         }
 
+        if (telegramUserId != null && telegramUserId != 0L) {
+            if (existing == null || existing.telegram_user_id == null) {
+                SupabaseRestClient.linkTelegramUserId(cleanUser, telegramUserId)
+            }
+            if (existing?.dewangram_username.isNullOrBlank()) {
+                SupabaseRestClient.setDewangramUsername(cleanUser, cleanUser)
+            }
+        }
+
+        val resolvedAccountType = existing?.account_type ?: "MAIN"
         settingsRepository.update { prefs ->
             prefs.copy(
                 kunjoUsername = cleanUser,
-                kunjoAccountType = "MAIN",
-                kunjoCanUpload = true,
+                kunjoAccountType = resolvedAccountType,
+                kunjoCanUpload = resolvedAccountType.equals("MAIN", ignoreCase = true),
                 storageChatId = storageChannelId ?: prefs.storageChatId
             )
         }
 
-        KunjoAuthResult.Success(cleanUser, "MAIN", null)
+        KunjoAuthResult.Success(cleanUser, resolvedAccountType, null)
     }
 
     suspend fun registerAccount(
@@ -81,7 +95,8 @@ class KunjoAuthRepository(
         accountType: String = "MAIN",
         parentUsername: String? = null,
         sessionString: String? = null,
-        storageChannelId: Long? = null
+        storageChannelId: Long? = null,
+        telegramUserId: Long? = null
     ): KunjoAuthResult = withContext(Dispatchers.IO) {
         val cleanUser = username.trim().lowercase().removePrefix("@")
         if (cleanUser.length < 3) {
@@ -97,7 +112,11 @@ class KunjoAuthRepository(
         // Check uniqueness on Supabase Cloud
         val existing = SupabaseRestClient.getUserByUsername(cleanUser)
         if (existing != null) {
-            val derivedCheck = ZeroKnowledgeVault.deriveKeys(password.toCharArray(), existing.encryption_salt.ifBlank { null })
+            val derivedCheck = runCatching {
+                ZeroKnowledgeVault.deriveKeys(password.toCharArray(), existing.encryption_salt.ifBlank { null })
+            }.getOrElse {
+                return@withContext KunjoAuthResult.Error("অ্যাকাউন্টের নিরাপত্তা সল্ট ত্রুটিপূর্ণ।")
+            }
             if (derivedCheck.authHash == existing.auth_hash) {
                 // Existing account credentials verified - link and log in
                 settingsRepository.update { prefs ->
@@ -159,13 +178,19 @@ class KunjoAuthRepository(
             return@withContext KunjoAuthResult.Error("ক্লাউডে অ্যাকাউন্ট সেভ করা সম্ভব হয়নি। ইন্টারনেট সংযোগ চেক করে পুনরায় চেষ্টা করুন।")
         }
 
+        if (telegramUserId != null && telegramUserId != 0L) {
+            SupabaseRestClient.linkTelegramUserId(cleanUser, telegramUserId)
+        }
+        SupabaseRestClient.setDewangramUsername(cleanUser, cleanUser)
+
         // 6. Update local user preferences
         settingsRepository.update { prefs ->
             prefs.copy(
                 kunjoUsername = cleanUser,
                 kunjoAccountType = accountType.uppercase(),
                 kunjoAuthHash = derived.authHash,
-                kunjoCanUpload = (accountType.uppercase() == "MAIN")
+                kunjoCanUpload = (accountType.uppercase() == "MAIN"),
+                storageChatId = storageChannelId ?: prefs.storageChatId
             )
         }
 
@@ -217,7 +242,11 @@ class KunjoAuthRepository(
         val channelId = remoteUser.primary_channel_id
 
         // 2. Derive key locally using remote salt
-        val derived = ZeroKnowledgeVault.deriveKeys(password.toCharArray(), saltToCheck.ifBlank { null })
+        val derived = runCatching {
+            ZeroKnowledgeVault.deriveKeys(password.toCharArray(), saltToCheck.ifBlank { null })
+        }.getOrElse {
+            return@withContext KunjoAuthResult.Error("অ্যাকাউন্টের এনক্রিপশন সল্ট ত্রুটিপূর্ণ।")
+        }
 
         // 3. Verify Auth Hash
         if (derived.authHash != authHashToCheck) {
@@ -277,7 +306,26 @@ class KunjoAuthRepository(
     suspend fun resetPassword(
         username: String,
         newPassword: String,
-        freshSessionString: String
+        freshSessionString: String,
+        verifiedTelegramUserId: Long? = null
+    ): KunjoAuthResult = resetPasswordVerified(
+        username = username,
+        newPassword = newPassword,
+        freshSessionString = freshSessionString,
+        verifiedTelegramUserId = verifiedTelegramUserId,
+        fetchUser = SupabaseRestClient::getUserByUsername,
+        updateCredentials = { user, hash, blob, iv, channelId, salt ->
+            SupabaseRestClient.updateSessionCredentials(user, hash, blob, iv, channelId, salt)
+        }
+    )
+
+    internal suspend fun resetPasswordVerified(
+        username: String,
+        newPassword: String,
+        freshSessionString: String,
+        verifiedTelegramUserId: Long?,
+        fetchUser: suspend (String) -> KunjoUserDto?,
+        updateCredentials: suspend (String, String, String, String, Long?, String?) -> Boolean
     ): KunjoAuthResult = withContext(Dispatchers.IO) {
         val cleanUser = username.trim().lowercase().removePrefix("@")
         if (cleanUser.length < 3) {
@@ -286,18 +334,31 @@ class KunjoAuthRepository(
         if (newPassword.length < 6) {
             return@withContext KunjoAuthResult.Error("নতুন পাসওয়ার্ড সর্বনিম্ন ৬ অক্ষরের হতে হবে")
         }
+        if (verifiedTelegramUserId == null || verifiedTelegramUserId == 0L) {
+            return@withContext KunjoAuthResult.Error("নিরাপত্তার স্বার্থে টেলিগ্রাম ওটিপি ভেরিফিকেশন আবশ্যক।")
+        }
+
+        val existing = fetchUser(cleanUser)
+            ?: return@withContext KunjoAuthResult.Error("অ্যাকাউন্ট খুঁজে পাওয়া যায়নি।")
+
+        if (existing.telegram_user_id == null || existing.telegram_user_id == 0L) {
+            return@withContext KunjoAuthResult.Error("এই অ্যাকাউন্টে ভেরিফাইড টেলিগ্রাম আইডি যুক্ত নেই, তাই পাসওয়ার্ড রিসেট করা যাবে না।")
+        }
+        if (existing.telegram_user_id != verifiedTelegramUserId) {
+            return@withContext KunjoAuthResult.Error("ভেরিফাইড টেলিগ্রাম অ্যাকাউন্টটি এই ইউজারনেমের (@$cleanUser) সাথে মিলছে না!")
+        }
 
         val derived = ZeroKnowledgeVault.deriveKeys(newPassword.toCharArray())
         val sessionPayload = freshSessionString.ifBlank { "UNINITIALIZED" }
         val encryptedPayload = ZeroKnowledgeVault.encrypt(sessionPayload, derived.encryptionKey)
 
-        val success = SupabaseRestClient.updateSessionCredentials(
-            username = cleanUser,
-            authHash = derived.authHash,
-            encryptedBlob = encryptedPayload.ciphertextBase64,
-            ivVector = encryptedPayload.ivBase64,
-            primaryChannelId = null,
-            encryptionSalt = derived.saltBase64
+        val success = updateCredentials(
+            cleanUser,
+            derived.authHash,
+            encryptedPayload.ciphertextBase64,
+            encryptedPayload.ivBase64,
+            null,
+            derived.saltBase64
         )
 
         if (!success) {
@@ -305,10 +366,11 @@ class KunjoAuthRepository(
             return@withContext KunjoAuthResult.Error("ক্লাউডে পাসওয়ার্ড আপডেট করা যায়নি। ইন্টারনেট সংযোগ বা ইউজারনেম যাচাই করে আবার চেষ্টা করুন।")
         }
 
-        val accountType = SupabaseRestClient.getUserByUsername(cleanUser)?.account_type ?: "MAIN"
+        val accountType = existing.account_type.ifBlank { "MAIN" }
         settingsRepository.update { prefs ->
             prefs.copy(
                 kunjoUsername = cleanUser,
+                kunjoAccountType = accountType,
                 kunjoAuthHash = derived.authHash
             )
         }
@@ -323,9 +385,10 @@ class KunjoAuthRepository(
     ): KunjoAuthResult = withContext(Dispatchers.IO) {
         val cleanCurrent = currentUsername.trim().lowercase().removePrefix("@")
         val cleanNew = newUsername.trim().lowercase().removePrefix("@")
+        val currentAccountType = settingsRepository.preferences.first().kunjoAccountType.ifBlank { "MAIN" }
 
         if (cleanNew == cleanCurrent) {
-            return@withContext KunjoAuthResult.Success(cleanNew, "MAIN", null)
+            return@withContext KunjoAuthResult.Success(cleanNew, currentAccountType, null)
         }
         if (cleanNew.length < 3) {
             return@withContext KunjoAuthResult.Error("ইউজারনেম সর্বনিম্ন ৩ অক্ষরের হতে হবে")
@@ -348,7 +411,7 @@ class KunjoAuthRepository(
         settingsRepository.update { prefs ->
             prefs.copy(kunjoUsername = cleanNew)
         }
-        KunjoAuthResult.Success(cleanNew, "MAIN", null)
+        KunjoAuthResult.Success(cleanNew, currentAccountType, null)
     }
 
     suspend fun fetchAdminTelemetry(): UserCountSummary = SupabaseRestClient.fetchUserCounts()

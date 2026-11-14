@@ -37,6 +37,7 @@ sealed interface Route {
         val favoritesOnly: Boolean = false,
         val availableOfflineOnly: Boolean = false,
         val hiddenOnly: Boolean = false,
+        val secondVaultOnly: Boolean = false,
         val archivedOnly: Boolean = false,
         val sortField: String? = null,
         val sortDescending: Boolean = false

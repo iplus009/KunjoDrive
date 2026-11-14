@@ -1,5 +1,20 @@
 package com.novo.drive.presentation.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -7,10 +22,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.novo.drive.core.files.PendingShare
+import com.novo.drive.presentation.iplusmessage.DewanUserSearchResult
 import org.jetbrains.compose.resources.stringResource
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -68,12 +87,34 @@ fun AppNavHost(
     verticalTabMotion: Boolean = false
 ) {
     val messageViewModel = koinViewModel<IplusMessageViewModel>()
+    val pendingShare = koinInject<PendingShare>()
+    val pendingDeepLink by pendingShare.text.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
     val clipboardManager = LocalClipboardManager.current
 
+    LaunchedEffect(messageViewModel) {
+        messageViewModel.statusMessages.collect { msg ->
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
+
+    LaunchedEffect(pendingDeepLink) {
+        val raw = pendingDeepLink
+        if (raw != null && raw.startsWith("__dewan_join__")) {
+            pendingShare.clearText()
+            messageViewModel.joinGroupFromDeepLink(raw.removePrefix("__dewan_join__")) { chatId, title ->
+                navController.navigateOnce(
+                    Route.DewanChatDetail(chatId = chatId, title = title, isGroup = true)
+                )
+            }
+        }
+    }
+
+    Box(modifier = modifier) {
     NavHost(
         navController = navController,
         startDestination = startDestination,
-        modifier = modifier,
+        modifier = Modifier.fillMaxSize(),
         enterTransition = {
             if (isPeerSwitch()) tabEnterFor(verticalTabMotion, movesForward())
             else NavigationTransitions.sharedAxisEnter(forward = true)
@@ -342,6 +383,15 @@ fun AppNavHost(
                     isFamilyMember = prefs.isFamilyMember,
                     kunjoUsername = prefs.kunjoUsername,
                     familyMemberName = prefs.familyMemberName,
+                    flagSecureEnabled = prefs.blockScreenCapture,
+                    onFlagSecureChanged = { messageViewModel.setScreenProtectionEnabled(it) },
+                    onJoinGroup = { raw ->
+                        messageViewModel.joinGroupFromDeepLink(raw) { chatId, title ->
+                            navController.navigateOnce(
+                                Route.DewanChatDetail(chatId = chatId, title = title, isGroup = true)
+                            )
+                        }
+                    },
                     onClearPendingShare = { messageViewModel.clearPendingShare() },
                     onOpenChat = { chatId, title, isGroup ->
                         navController.navigateOnce(
@@ -377,15 +427,27 @@ fun AppNavHost(
             val messages by messageViewModel.observeMessages(route.chatId).collectAsStateWithLifecycle(emptyList())
             val recentDriveFiles by messageViewModel.recentDriveFiles.collectAsStateWithLifecycle()
             val groups by messageViewModel.groups.collectAsStateWithLifecycle()
+            val groupMembersMap by messageViewModel.groupMembers.collectAsStateWithLifecycle()
+            val currentTgUserId by messageViewModel.currentTelegramUserId.collectAsStateWithLifecycle()
             val prefs by messageViewModel.preferences.collectAsStateWithLifecycle()
             val pendingShareFile by messageViewModel.pendingShareFile.collectAsStateWithLifecycle()
             var showGroupSettings by remember { mutableStateOf(false) }
+            var showAddMemberDialog by remember { mutableStateOf(false) }
+            var memberSearchQuery by remember { mutableStateOf("") }
 
             val currentGroup = groups.firstOrNull { it.groupId == route.chatId }
+            val effectiveUserId = if (currentGroup?.ownerId == 0L) 0L else currentTgUserId
             val isReadOnly = currentGroup?.isReadOnly ?: false
-            val canSendInReadOnly = (currentGroup == null) || (currentGroup.ownerId == 0L) ||
-                    currentGroup.adminIds.split(",").contains("0") ||
-                    currentGroup.allowedSenderIds.split(",").contains("0")
+            val canSendInReadOnly = (currentGroup == null) ||
+                    (currentGroup.ownerId == effectiveUserId) ||
+                    currentGroup.adminIds.split(",").contains(effectiveUserId.toString()) ||
+                    currentGroup.allowedSenderIds.split(",").contains(effectiveUserId.toString())
+
+            LaunchedEffect(route.chatId, route.isGroup) {
+                if (route.isGroup) {
+                    messageViewModel.refreshGroupMembers(route.chatId)
+                }
+            }
 
             LaunchedEffect(pendingShareFile) {
                 pendingShareFile?.let { path ->
@@ -409,6 +471,9 @@ fun AppNavHost(
                 recentDriveFiles = recentDriveFiles,
                 isReadOnly = isReadOnly,
                 canSendInReadOnly = canSendInReadOnly,
+                flagSecureEnabled = prefs.blockScreenCapture,
+                onFlagSecureChanged = { messageViewModel.setScreenProtectionEnabled(it) },
+                onMarkViewOnceViewed = { msgId -> messageViewModel.markViewOnceViewed(msgId) },
                 onBack = { navController.popBackStackOnce() },
                 onSendMessage = { text, driveLink, isViewOnce ->
                     messageViewModel.sendMessage(
@@ -419,47 +484,78 @@ fun AppNavHost(
                         contactName = route.title
                     )
                 },
-                onOpenGroupSettings = { showGroupSettings = true },
-                onPlayVideo = { _, _ ->
-                    navController.navigateOnce(Route.Cinema)
+                onOpenGroupSettings = {
+                    messageViewModel.refreshGroupMembers(route.chatId)
+                    showGroupSettings = true
                 },
-                onPlayAudio = { fileId, _ ->
-                    navController.navigateOnce(Route.MusicPlayer(initialFileId = fileId))
+                onPlayVideo = { fileRef, _ ->
+                    if (fileRef.startsWith("tgremote://")) {
+                        messageViewModel.saveToMyDrive(fileRef) { saved ->
+                            navController.navigateOnce(Route.Preview(fileId = saved.id))
+                        }
+                    } else {
+                        val cleanId = fileRef.removePrefix("kunjo://file/")
+                        navController.navigateOnce(Route.Preview(fileId = cleanId))
+                    }
                 },
-                onOpenPdf = { fileId, _ ->
-                    navController.navigateOnce(Route.Preview(fileId = fileId))
+                onPlayAudio = { fileRef, _ ->
+                    if (fileRef.startsWith("tgremote://")) {
+                        messageViewModel.saveToMyDrive(fileRef) { saved ->
+                            navController.navigateOnce(Route.MusicPlayer(initialFileId = saved.id))
+                        }
+                    } else {
+                        val cleanId = fileRef.removePrefix("kunjo://file/")
+                        navController.navigateOnce(Route.MusicPlayer(initialFileId = cleanId))
+                    }
                 },
-                onSaveToMyDrive = { _ -> }
+                onOpenPdf = { fileRef, _ ->
+                    if (fileRef.startsWith("tgremote://")) {
+                        messageViewModel.saveToMyDrive(fileRef) { saved ->
+                            navController.navigateOnce(Route.Preview(fileId = saved.id))
+                        }
+                    } else {
+                        val cleanId = fileRef.removePrefix("kunjo://file/")
+                        navController.navigateOnce(Route.Preview(fileId = cleanId))
+                    }
+                },
+                onSaveToMyDrive = { link ->
+                    messageViewModel.saveToMyDrive(link)
+                }
             )
 
             if (showGroupSettings && route.isGroup) {
                 val groupEntity = currentGroup ?: IplusMessageGroupEntity(
                     groupId = route.chatId,
                     title = route.title,
-                    ownerId = 0L,
+                    ownerId = effectiveUserId,
                     memberCount = 1,
                     inviteLink = "dewan://join/g_${route.chatId}"
                 )
                 val adminSet = groupEntity.adminIds.split(",").filter { it.isNotBlank() }.toSet()
                 val allowedSet = groupEntity.allowedSenderIds.split(",").filter { it.isNotBlank() }.toSet()
-                val memberList = listOf(
-                    GroupMemberItem(
-                        userId = 0L,
-                        name = "You",
-                        username = "me",
-                        role = if (groupEntity.ownerId == 0L) "OWNER" else if (adminSet.contains("0")) "ADMIN" else "MEMBER",
-                        isAllowedSender = allowedSet.contains("0"),
-                        avatarEmoji = "👑"
+                val liveMembers = groupMembersMap[route.chatId].orEmpty()
+                val memberList = liveMembers.ifEmpty {
+                    listOf(
+                        GroupMemberItem(
+                            userId = effectiveUserId,
+                            name = "আপনি (You)",
+                            username = prefs.kunjoUsername.ifBlank { "me" },
+                            role = if (groupEntity.ownerId == effectiveUserId) "OWNER"
+                            else if (adminSet.contains(effectiveUserId.toString())) "ADMIN"
+                            else "MEMBER",
+                            isAllowedSender = allowedSet.contains(effectiveUserId.toString()),
+                            avatarEmoji = "👑"
+                        )
                     )
-                )
+                }
                 IplusGroupSettingsSheet(
                     group = groupEntity,
-                    currentUserId = 0L,
+                    currentUserId = effectiveUserId,
                     members = memberList,
                     onDismiss = { showGroupSettings = false },
-                    onAddMember = { },
+                    onAddMember = { showAddMemberDialog = true },
                     onRemoveMember = { memberId ->
-                        messageViewModel.removeMemberWithRoleCheck(route.chatId, 0L, memberId)
+                        messageViewModel.removeMemberWithRoleCheck(route.chatId, effectiveUserId, memberId)
                     },
                     onBlockMember = { memberId -> messageViewModel.blockUser(memberId) },
                     onUpdateTitle = { newTitle -> messageViewModel.updateGroupTitle(route.chatId, newTitle) },
@@ -477,7 +573,74 @@ fun AppNavHost(
                     }
                 )
             }
+
+            if (showAddMemberDialog && route.isGroup) {
+                val contactsList by messageViewModel.contacts.collectAsStateWithLifecycle()
+                val searchResultsList by messageViewModel.searchResults.collectAsStateWithLifecycle()
+                val candidates = if (memberSearchQuery.isNotBlank()) {
+                    searchResultsList
+                } else {
+                    contactsList.filter { it.userId > 1L && !it.isBlocked }.map {
+                        DewanUserSearchResult(
+                            userId = it.userId,
+                            username = it.username,
+                            displayName = it.displayName,
+                            roleBadge = "কন্টাক্ট",
+                            avatarEmoji = it.avatarValue
+                        )
+                    }
+                }
+                AlertDialog(
+                    onDismissRequest = { showAddMemberDialog = false },
+                    title = { Text("নতুন সদস্য যুক্ত করুন") },
+                    text = {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = memberSearchQuery,
+                                onValueChange = {
+                                    memberSearchQuery = it
+                                    messageViewModel.searchUsers(it)
+                                },
+                                label = { Text("@ইউজারনেম খুঁজুন") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            if (candidates.isEmpty()) {
+                                Text("কোনো ব্যবহারকারী পাওয়া যায়নি। @username লিখে সার্চ করুন।")
+                            } else {
+                                LazyColumn(modifier = Modifier.height(200.dp)) {
+                                    items(candidates) { user ->
+                                        TextButton(
+                                            onClick = {
+                                                messageViewModel.addGroupMember(route.chatId, user)
+                                                showAddMemberDialog = false
+                                                memberSearchQuery = ""
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text("${user.avatarEmoji} ${user.displayName} (@${user.username})")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showAddMemberDialog = false }) {
+                            Text("বন্ধ করুন")
+                        }
+                    }
+                )
+            }
         }
+    }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = 84.dp)
+    )
     }
 }
 
