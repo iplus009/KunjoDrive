@@ -157,6 +157,12 @@ interface TelegramClient {
      */
     suspend fun createPrivateChat(userId: Long): Long
 
+    /**
+     * Resolves a private Telegram chat by public [username] when [createPrivateChat] cannot open
+     * an uncached user ID directly. If [expectedUserId] is positive, verifies the resolved peer matches.
+     */
+    suspend fun resolvePrivateChatByUsername(username: String, expectedUserId: Long = 0L): Long? = null
+
     /** Emits incoming (non-outgoing, non-channel) DM and group messages received via TDLib. */
     fun incomingMessages(): Flow<IncomingTelegramMessage> = emptyFlow()
 

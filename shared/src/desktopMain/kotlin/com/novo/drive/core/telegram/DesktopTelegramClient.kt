@@ -1254,6 +1254,17 @@ class DesktopTelegramClient(
         return chat.id
     }
 
+    override suspend fun resolvePrivateChatByUsername(username: String, expectedUserId: Long): Long? {
+        awaitAuthorized()
+        val clean = username.trim().removePrefix("@")
+        if (clean.length < 5 || clean.startsWith("user_")) return null
+        val chat = runCatching { paced { send<TdApi.Chat>(TdApi.SearchPublicChat(clean)) } }.getOrNull()
+            ?: return null
+        val privateType = chat.type as? TdApi.ChatTypePrivate ?: return null
+        if (expectedUserId > 0L && privateType.userId != expectedUserId) return null
+        return chat.id.takeIf { it != 0L }
+    }
+
     private fun TdApi.MessageContent.captionText(): String? = when (this) {
         is TdApi.MessageDocument -> caption?.text
         is TdApi.MessageAudio -> caption?.text

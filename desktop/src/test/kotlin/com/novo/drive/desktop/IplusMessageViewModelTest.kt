@@ -465,5 +465,59 @@ class IplusMessageViewModelTest {
         assertEquals(tempFile.absolutePath, importedPath)
         assertEquals("notes.txt", importedName)
     }
+
+    @Test
+    fun `sendMessage falls back to resolvePrivateChatByUsername when createPrivateChat fails`() = runBlocking {
+        val dao = FakeMessageDao()
+        val incoming = MutableSharedFlow<IncomingTelegramMessage>(extraBufferCapacity = 8)
+        var fallbackUsername: String? = null
+        var fallbackExpectedId: Long? = null
+        var sentChatId: Long? = null
+        var sentText: String? = null
+
+        val tg = object : TelegramClient by unused() {
+            override fun incomingMessages(): Flow<IncomingTelegramMessage> = incoming
+            override suspend fun createPrivateChat(userId: Long): Long {
+                throw IllegalStateException("Peer not cached")
+            }
+            override suspend fun resolvePrivateChatByUsername(username: String, expectedUserId: Long): Long? {
+                fallbackUsername = username
+                fallbackExpectedId = expectedUserId
+                return 88002L
+            }
+            override suspend fun sendTextMessage(chatId: Long, text: String): Long? {
+                sentChatId = chatId
+                sentText = text
+                return 555L
+            }
+        }
+        val vm = IplusMessageViewModel(dao, fakeFamilyDao(), fakeSettings(), fakeFiles(), tg, fakeImporter())
+        waitUntil { incoming.subscriptionCount.value > 0 }
+
+        incoming.emit(
+            IncomingTelegramMessage(
+                messageId = 9001L,
+                chatId = 77001L,
+                senderId = 77001L,
+                senderName = "Alice",
+                senderUsername = "alice_tg",
+                isGroup = false,
+                text = "Hello from Alice",
+                timestampMs = 123456L
+            )
+        )
+        waitUntil { dao.contacts.value.any { it.userId == 77001L } }
+
+        vm.sendMessage(77001L, "Hi Alice!", null, false, "Alice")
+        waitUntil { sentText == "Hi Alice!" && dao.messages.value.any { it.isOutgoing && it.status == "SENT" } }
+
+        assertEquals("alice_tg", fallbackUsername)
+        assertEquals(77001L, fallbackExpectedId)
+        assertEquals(88002L, sentChatId)
+        assertEquals(
+            "SENT",
+            dao.messages.value.last { it.isOutgoing }.status
+        )
+    }
 }
 

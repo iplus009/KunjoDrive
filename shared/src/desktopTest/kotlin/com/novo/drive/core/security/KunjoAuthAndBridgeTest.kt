@@ -121,4 +121,38 @@ class KunjoAuthAndBridgeTest {
         assertEquals("bob_sub", prefsState.value.kunjoUsername)
         assertEquals("SUB", prefsState.value.kunjoAccountType)
     }
+
+    @Test
+    fun `SupabaseRestClient encodes decodes and parses Telegram link marker in ip_address`() {
+        val marker = com.novo.drive.core.network.SupabaseRestClient.encodeTelegramLinkMarker(777888999L, "@Alice_Tg")
+        assertEquals("tg:777888999:Alice_Tg", marker)
+
+        val (decodedId, decodedUser) = com.novo.drive.core.network.SupabaseRestClient.decodeTelegramLinkMarker(marker)
+        assertEquals(777888999L, decodedId)
+        assertEquals("Alice_Tg", decodedUser)
+
+        val (nonMarkerId, nonMarkerUser) = com.novo.drive.core.network.SupabaseRestClient.decodeTelegramLinkMarker("192.168.1.10")
+        assertEquals(0L, nonMarkerId)
+        assertEquals(null, nonMarkerUser)
+
+        val jsonPayload = """
+            [
+              {"id":"u-1","username":"alice_k","ip_address":"tg:777888999:Alice_Tg"},
+              {"id":"u-2","dewangram_username":"bob_k","telegram_user_id":11223344,"telegram_username":"bob_tg"},
+              {"id":"u-3","username":"unlinked","ip_address":"10.0.0.5"}
+            ]
+        """.trimIndent()
+        val parsed = com.novo.drive.core.network.SupabaseRestClient.parseDewangramSearchJson(jsonPayload)
+        assertEquals(3, parsed.size)
+        assertEquals("alice_k", parsed[0].dewangramUsername)
+        assertEquals(777888999L, parsed[0].telegramUserId)
+        assertEquals("Alice_Tg", parsed[0].telegramUsername)
+
+        assertEquals("bob_k", parsed[1].dewangramUsername)
+        assertEquals(11223344L, parsed[1].telegramUserId)
+        assertEquals("bob_tg", parsed[1].telegramUsername)
+
+        assertEquals("unlinked", parsed[2].dewangramUsername)
+        assertEquals(0L, parsed[2].telegramUserId)
+    }
 }

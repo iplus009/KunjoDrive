@@ -30,6 +30,7 @@ data class KunjoUserDto(
     val city: String = "Unknown",
     val isp: String = "Unknown",
     val device_model: String = "Unknown",
+    val ip_address: String? = null,
     val app_version: String = Secrets.APP_VERSION,
     // DewanGram fields
     val dewangram_username: String? = null,
@@ -42,15 +43,19 @@ data class KunjoUserDto(
 data class DewanGramUserSearchResult(
     val id: String,
     val dewangramUsername: String,
-    val telegramUserId: Long
+    val telegramUserId: Long,
+    val telegramUsername: String? = null
 )
 
 /** Internal DTO for search results from Supabase. */
 @Serializable
 private data class DewanGramSearchDto(
     val id: String? = null,
+    val username: String? = null,
     val dewangram_username: String? = null,
-    val telegram_user_id: Long? = null
+    val telegram_user_id: Long? = null,
+    val telegram_username: String? = null,
+    val ip_address: String? = null
 )
 
 @Serializable
@@ -95,6 +100,11 @@ private data class UsernamePatch(
 private data class TelegramLinkPatch(
     val telegram_user_id: Long,
     val telegram_linked_at: Long
+)
+
+@Serializable
+private data class IpAddressTelegramLinkPatch(
+    val ip_address: String
 )
 
 @Serializable
@@ -367,109 +377,169 @@ object SupabaseRestClient {
         null
     }
 
-    /**
-     * Find a user by their DewanGram username.
-     * Returns the user's KunjoUserDto if found, null otherwise.
-     */
-    suspend fun getUserByDewangramUsername(dewangramUsername: String): KunjoUserDto? = withContext(Dispatchers.IO) {
-        if (!isConfigured) return@withContext null
-        var conn: HttpURLConnection? = null
-        try {
-            val encoded = URLEncoder.encode(dewangramUsername.trim().lowercase(), "UTF-8")
-            conn = openConnection("/kunjo_users?dewangram_username=eq.$encoded&select=*", "GET")
-            if (conn.responseCode == 200) {
-                val responseText = conn.inputStream.bufferedReader().use { it.readText() }
-                val array = json.decodeFromString<List<KunjoUserDto>>(responseText)
-                return@withContext array.firstOrNull()
-            }
-        } catch (_: Throwable) {
-            // fallthrough
-        } finally {
-            conn?.disconnect()
-        }
-        null
+    internal fun encodeTelegramLinkMarker(telegramUserId: Long, telegramUsername: String?): String {
+        val cleanTgUser = telegramUsername?.trim()?.removePrefix("@").orEmpty()
+        return "tg:$telegramUserId:$cleanTgUser"
     }
 
-    /**
-     * Search DewanGram users by username prefix for user discovery.
-     * Returns lightweight results: id, dewangram_username, telegram_user_id.
-     */
-    suspend fun searchDewangramUsers(query: String): List<DewanGramUserSearchResult> = withContext(Dispatchers.IO) {
-        val cleanQuery = query.trim().lowercase().removePrefix("@")
-        if (!isConfigured || cleanQuery.length < 2) return@withContext emptyList()
-        var conn: HttpURLConnection? = null
-        try {
-            // Sanitize: escape SQL wildcards _ and % which would match unintended results.
-            // URLEncoder only encodes URL special chars, not SQL wildcards.
-            val sanitized = cleanQuery
-                .replace("_", "\\_")
-                .replace("%", "\\%")
-            if (sanitized.isBlank()) return@withContext emptyList()
-            val encoded = URLEncoder.encode(sanitized, "UTF-8")
-            conn = openConnection(
-                "/kunjo_users?dewangram_username=ilike.*$encoded*&select=id,dewangram_username,telegram_user_id",
-                "GET"
+    internal fun decodeTelegramLinkMarker(ipAddress: String?): Pair<Long, String?> {
+        val raw = ipAddress?.trim().orEmpty()
+        if (!raw.startsWith("tg:")) return 0L to null
+        val parts = raw.split(":", limit = 3)
+        val uid = parts.getOrNull(1)?.toLongOrNull()?.takeIf { it > 0L } ?: 0L
+        val uname = parts.getOrNull(2)?.trim()?.removePrefix("@")?.takeIf { it.isNotBlank() }
+        return uid to uname
+    }
+
+    internal fun parseDewangramSearchJson(responseText: String): List<DewanGramUserSearchResult> {
+        val trimmed = responseText.trim()
+        if (trimmed.isBlank()) return emptyList()
+        val array = if (trimmed.startsWith("[")) {
+            json.decodeFromString<List<DewanGramSearchDto>>(trimmed)
+        } else {
+            listOf(json.decodeFromString<DewanGramSearchDto>(trimmed))
+        }
+        return array.mapNotNull { dto ->
+            val handle = dto.dewangram_username?.takeIf { it.isNotBlank() }
+                ?: dto.username?.takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            val rowId = dto.id?.takeIf { it.isNotBlank() } ?: handle
+            val (markerId, markerTgUsername) = decodeTelegramLinkMarker(dto.ip_address)
+            val resolvedTgId = dto.telegram_user_id?.takeIf { it > 0L } ?: markerId
+            val resolvedTgUsername = dto.telegram_username?.trim()?.removePrefix("@")?.takeIf { it.isNotEmpty() }
+                ?: markerTgUsername
+            DewanGramUserSearchResult(
+                id = rowId,
+                dewangramUsername = handle,
+                telegramUserId = resolvedTgId,
+                telegramUsername = resolvedTgUsername
             )
-            if (conn.responseCode == 200) {
-                val responseText = conn.inputStream.bufferedReader().use { it.readText() }
-                // Handle empty response gracefully - Supabase may return [] or even {} for no matches
-                if (responseText.isBlank()) return@withContext emptyList()
-                val trimmed = responseText.trim()
-                // Supabase REST always returns [] for SELECT, but handle {} edge case
-                val array = if (trimmed.startsWith("[")) {
-                    json.decodeFromString<List<DewanGramSearchDto>>(trimmed)
-                } else {
-                    // Edge case: single object {} returned instead of [{}]
-                    val single = json.decodeFromString<DewanGramSearchDto>(trimmed)
-                    listOf(single)
-                }
-                return@withContext array.mapNotNull { dto ->
-                    if (dto.dewangram_username.isNullOrBlank() || dto.telegram_user_id == null) null
-                    else DewanGramUserSearchResult(
-                        id = dto.id ?: return@mapNotNull null,
-                        dewangramUsername = dto.dewangram_username,
-                        telegramUserId = dto.telegram_user_id
-                    )
-                }
-            }
-        } catch (_: Throwable) {
-            // fallthrough
-        } finally {
-            conn?.disconnect()
         }
-        emptyList()
     }
 
-    /**
-     * Link a Telegram user ID to an existing Kunjo user.
-     * Call this after Telegram login is confirmed to associate
-     * the Telegram identity with the Kunjo account.
-     * Returns true only if a row was actually updated.
-     */
-    suspend fun linkTelegramUserId(kunjoUsername: String, telegramUserId: Long): Boolean = withContext(Dispatchers.IO) {
-        if (!isConfigured) return@withContext false
+    private fun patchRepresentation(endpoint: String, payload: String): Boolean {
         var conn: HttpURLConnection? = null
-        try {
-            val encoded = URLEncoder.encode(kunjoUsername.trim().lowercase(), "UTF-8")
-            conn = openConnection("/kunjo_users?username=eq.$encoded", "PATCH")
+        return try {
+            conn = openConnection(endpoint, "PATCH")
             conn.setRequestProperty("Prefer", "return=representation")
             conn.doOutput = true
-            val payload = json.encodeToString(TelegramLinkPatch(
-                telegram_user_id = telegramUserId,
-                telegram_linked_at = System.currentTimeMillis()
-            ))
             conn.outputStream.bufferedWriter().use { it.write(payload) }
-            val code = conn.responseCode
-            if (code !in 200..299) return@withContext false
-            // Verify at least one row was actually updated by checking response body
-            val responseText = conn.inputStream.bufferedReader().use { it.readText() }
-            val trimmed = responseText.trim()
+            if (conn.responseCode !in 200..299) return false
+            val trimmed = conn.inputStream.bufferedReader().use { it.readText() }.trim()
             trimmed.startsWith("[") && trimmed != "[]"
         } catch (_: Throwable) {
             false
         } finally {
             conn?.disconnect()
         }
+    }
+
+    /**
+     * Find a user by their DewanGram username (with fallback to primary Kunjo username column).
+     * Returns the user's KunjoUserDto if found, null otherwise.
+     */
+    suspend fun getUserByDewangramUsername(dewangramUsername: String): KunjoUserDto? = withContext(Dispatchers.IO) {
+        if (!isConfigured) return@withContext null
+        val encoded = URLEncoder.encode(dewangramUsername.trim().lowercase().removePrefix("@"), "UTF-8")
+        val endpoints = listOf(
+            "/kunjo_users?dewangram_username=eq.$encoded&select=*",
+            "/kunjo_users?username=eq.$encoded&select=*"
+        )
+        for (endpoint in endpoints) {
+            var conn: HttpURLConnection? = null
+            try {
+                conn = openConnection(endpoint, "GET")
+                if (conn.responseCode == 200) {
+                    val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                    val found = json.decodeFromString<List<KunjoUserDto>>(responseText).firstOrNull()
+                    if (found != null) {
+                        val (markerId, _) = decodeTelegramLinkMarker(found.ip_address)
+                        return@withContext if (found.telegram_user_id == null && markerId > 0L) {
+                            found.copy(telegram_user_id = markerId)
+                        } else {
+                            found
+                        }
+                    }
+                    return@withContext null
+                }
+            } catch (_: Throwable) {
+                // try fallback query
+            } finally {
+                conn?.disconnect()
+            }
+        }
+        null
+    }
+
+    /**
+     * Search DewanGram users by username/dewangram_username substring for user discovery.
+     * Falls back to `username` + `ip_address` marker when extended DewanGram columns are absent.
+     */
+    suspend fun searchDewangramUsers(query: String): List<DewanGramUserSearchResult> = withContext(Dispatchers.IO) {
+        val cleanQuery = query.trim().lowercase().removePrefix("@")
+        if (!isConfigured || cleanQuery.length < 2) return@withContext emptyList()
+        // Sanitize: escape SQL wildcards _ and % which would match unintended results.
+        // URLEncoder only encodes URL special chars, not SQL wildcards.
+        val sanitized = cleanQuery
+            .replace("_", "\\_")
+            .replace("%", "\\%")
+        if (sanitized.isBlank()) return@withContext emptyList()
+        val encoded = URLEncoder.encode(sanitized, "UTF-8")
+        val endpoints = listOf(
+            "/kunjo_users?or=(dewangram_username.ilike.*$encoded*,username.ilike.*$encoded*)&select=id,username,dewangram_username,telegram_user_id,ip_address",
+            "/kunjo_users?username=ilike.*$encoded*&select=id,username,ip_address"
+        )
+        for (endpoint in endpoints) {
+            var conn: HttpURLConnection? = null
+            try {
+                conn = openConnection(endpoint, "GET")
+                if (conn.responseCode == 200) {
+                    val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                    return@withContext parseDewangramSearchJson(responseText)
+                }
+            } catch (_: Throwable) {
+                // try fallback query
+            } finally {
+                conn?.disconnect()
+            }
+        }
+        emptyList()
+    }
+
+    /**
+     * Link a Telegram user ID (and optional Telegram username) to an existing Kunjo user.
+     * Falls back to storing a `tg:<id>:<username>` marker in `ip_address` when the dedicated
+     * `telegram_user_id` column is not present on the live table.
+     */
+    suspend fun linkTelegramUserId(
+        kunjoUsername: String,
+        telegramUserId: Long,
+        telegramUsername: String? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (!isConfigured || telegramUserId <= 0L) return@withContext false
+        val cleanUser = kunjoUsername.trim().lowercase().removePrefix("@")
+        if (cleanUser.isBlank()) return@withContext false
+        val encoded = URLEncoder.encode(cleanUser, "UTF-8")
+        val endpoint = "/kunjo_users?username=eq.$encoded"
+
+        val primaryPayload = json.encodeToString(
+            TelegramLinkPatch(
+                telegram_user_id = telegramUserId,
+                telegram_linked_at = System.currentTimeMillis()
+            )
+        )
+        val ipPayload = json.encodeToString(
+            IpAddressTelegramLinkPatch(ip_address = encodeTelegramLinkMarker(telegramUserId, telegramUsername))
+        )
+
+        val primaryOk = patchRepresentation(endpoint, primaryPayload)
+        if (primaryOk) {
+            if (!telegramUsername.isNullOrBlank()) {
+                patchRepresentation(endpoint, ipPayload)
+            }
+            return@withContext true
+        }
+        patchRepresentation(endpoint, ipPayload)
     }
 
     /**

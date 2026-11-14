@@ -6,6 +6,7 @@ import com.novo.drive.core.common.AppResult
 import com.novo.drive.core.files.FileImporter
 import com.novo.drive.core.network.SupabaseRestClient
 import com.novo.drive.core.telegram.IncomingTelegramMessage
+import com.novo.drive.core.telegram.TelegramAuthState
 import com.novo.drive.core.telegram.TelegramClient
 import com.novo.drive.core.telegram.TelegramDownloadEvent
 import com.novo.drive.core.telegram.TelegramUploadEvent
@@ -20,6 +21,7 @@ import com.novo.drive.domain.model.UserPreferences
 import com.novo.drive.domain.repository.FileRepository
 import com.novo.drive.domain.repository.SettingsRepository
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -30,11 +32,16 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+
+private const val SYNTHETIC_UNLINKED_USER_BASE = 900_000_000_000L
 
 data class DewanUserSearchResult(
     val userId: Long,
@@ -46,7 +53,9 @@ data class DewanUserSearchResult(
     val isOwner: Boolean = false,
     val isVerifiedAdmin: Boolean = false,
     /** Real Telegram user ID resolved from DewanGram mapping. Zero if unresolved. */
-    val telegramUserId: Long = 0L
+    val telegramUserId: Long = 0L,
+    /** Linked Telegram public username (without @), used when TDLib has not cached [telegramUserId]. */
+    val telegramUsername: String? = null
 )
 
 /**
@@ -59,6 +68,7 @@ private data class RetryableMessage(
     val text: String,
     val driveLink: String?,
     val contactName: String,
+    val telegramUsername: String? = null,
     val textSent: Boolean = false,
     val docSent: Boolean = false,
     val retryCount: Int = 0
@@ -130,6 +140,7 @@ class IplusMessageViewModel(
     private val retryTrigger = Channel<Unit>(Channel.CONFLATED)
     private val maxRetryAttempts = 3
     private val retryBaseDelayMs = 1_500L
+    private val resolvedTelegramUsernames = ConcurrentHashMap<Long, String>()
 
     init {
         viewModelScope.launch {
@@ -138,19 +149,39 @@ class IplusMessageViewModel(
             }
         }
         viewModelScope.launch {
-            val user = runCatching { telegramClient.getCurrentUser() }.getOrNull()
-            if (user != null && user.id > 0L) {
-                _currentTelegramUserId.value = user.id
-                val prefs = runCatching { settingsRepository.preferences.first() }.getOrNull()
-                if (prefs != null && prefs.kunjoUsername.isNotBlank()) {
-                    runCatching { SupabaseRestClient.linkTelegramUserId(prefs.kunjoUsername, user.id) }
-                }
+            syncTelegramIdentity()
+        }
+        viewModelScope.launch {
+            val authFlow = runCatching { telegramClient.authState }.getOrNull() ?: return@launch
+            authFlow.filter { it == TelegramAuthState.Ready }.collect {
+                syncTelegramIdentity()
             }
+        }
+        viewModelScope.launch {
+            settingsRepository.preferences
+                .map { it.kunjoUsername }
+                .distinctUntilChanged()
+                .filter { it.isNotBlank() }
+                .collect {
+                    syncTelegramIdentity()
+                }
         }
         viewModelScope.launch {
             val incoming = runCatching { telegramClient.incomingMessages() }.getOrNull() ?: return@launch
             incoming.collect { msg ->
                 handleIncomingTelegramMessage(msg)
+            }
+        }
+    }
+
+    private suspend fun syncTelegramIdentity() {
+        val user = runCatching { telegramClient.getCurrentUser() }.getOrNull() ?: return
+        if (user.id <= 0L) return
+        _currentTelegramUserId.value = user.id
+        val prefs = runCatching { settingsRepository.preferences.first() }.getOrNull() ?: return
+        if (prefs.kunjoUsername.isNotBlank()) {
+            runCatching {
+                SupabaseRestClient.linkTelegramUserId(prefs.kunjoUsername, user.id, user.username)
             }
         }
     }
@@ -280,19 +311,28 @@ class IplusMessageViewModel(
             // DewanGram username search returns the real Telegram user ID from our Supabase mapping.
             val dewangramResults = SupabaseRestClient.searchDewangramUsers(clean)
             for (dg in dewangramResults) {
+                val resolvedId = if (dg.telegramUserId > 0L) {
+                    dg.telegramUserId
+                } else {
+                    SYNTHETIC_UNLINKED_USER_BASE + (dg.dewangramUsername.lowercase().hashCode().toLong() and 0x7FFFFFFFL)
+                }
+                dg.telegramUsername?.trim()?.takeIf { it.isNotEmpty() }?.let { tgUsername ->
+                    resolvedTelegramUsernames[resolvedId] = tgUsername
+                }
                 val duplicate = results.any {
-                    (dg.telegramUserId != 0L && (it.userId == dg.telegramUserId || it.telegramUserId == dg.telegramUserId)) ||
+                    (dg.telegramUserId > 0L && (it.userId == dg.telegramUserId || it.telegramUserId == dg.telegramUserId)) ||
                         it.username.equals(dg.dewangramUsername, ignoreCase = true)
                 }
                 if (!duplicate) {
                     results.add(
                         DewanUserSearchResult(
-                            userId = dg.telegramUserId,
+                            userId = resolvedId,
                             username = dg.dewangramUsername,
                             displayName = dg.dewangramUsername,
-                            roleBadge = "📱 দেওয়ানগ্রাম",
+                            roleBadge = if (dg.telegramUserId > 0L) "📱 দেওয়ানগ্রাম" else "📱 দেওয়ানগ্রাম (টেলিগ্রাম লিংক নেই)",
                             avatarEmoji = "📱",
-                            telegramUserId = dg.telegramUserId
+                            telegramUserId = dg.telegramUserId,
+                            telegramUsername = dg.telegramUsername
                         )
                     )
                 }
@@ -371,6 +411,11 @@ class IplusMessageViewModel(
 
             // STRICT SUB-ACCOUNT RESTRICTION 2: Sub-Account CANNOT save contacts!
             // Also never insert groups into the DM contacts table.
+            val matchedResult = _searchResults.value.firstOrNull { it.userId == chatId }
+            val resolvedUsernameForContact = matchedResult?.username?.takeIf { it.isNotBlank() }
+                ?: "user_$chatId"
+            val targetTelegramUsername = matchedResult?.telegramUsername?.takeIf { it.isNotBlank() }
+                ?: resolvedTelegramUsernames[chatId]
             val isGroupChat = chatId < 0L || activeGroup != null
             if (!prefs.isFamilyMember && !isGroupChat) {
                 val existing = messageDao.getContact(chatId)
@@ -378,7 +423,7 @@ class IplusMessageViewModel(
                     messageDao.upsertContact(
                         IplusMessageContactEntity(
                             userId = chatId,
-                            username = "user_$chatId",
+                            username = resolvedUsernameForContact,
                             displayName = contactName,
                             lastSeenTimestamp = System.currentTimeMillis()
                         )
@@ -410,6 +455,7 @@ class IplusMessageViewModel(
                 chatId = chatId,
                 text = text,
                 driveLink = driveLink,
+                telegramUsername = targetTelegramUsername,
                 textAlreadySent = false,
                 docAlreadySent = false
             )
@@ -422,6 +468,7 @@ class IplusMessageViewModel(
                         text = text,
                         driveLink = driveLink,
                         contactName = contactName,
+                        telegramUsername = targetTelegramUsername,
                         textSent = outcome.textSent,
                         docSent = outcome.docSent,
                         retryCount = 0
@@ -443,19 +490,33 @@ class IplusMessageViewModel(
         return false
     }
 
-    private suspend fun resolveTelegramChatId(chatId: Long): Long {
+    private suspend fun resolveTelegramChatId(chatId: Long, telegramUsername: String? = null): Long {
         if (chatId < 0L) return chatId
-        return telegramClient.createPrivateChat(chatId)
+        if (chatId in 1L until SYNTHETIC_UNLINKED_USER_BASE) {
+            val direct = runCatching { telegramClient.createPrivateChat(chatId) }
+                .getOrNull()
+                ?.takeIf { it != 0L }
+            if (direct != null) return direct
+        }
+        val cleanUser = telegramUsername?.trim()?.removePrefix("@")?.takeIf { it.length >= 5 && !it.startsWith("user_") }
+        if (cleanUser != null) {
+            val expectedId = if (chatId < SYNTHETIC_UNLINKED_USER_BASE) chatId else 0L
+            telegramClient.resolvePrivateChatByUsername(cleanUser, expectedId)
+                ?.takeIf { it != 0L }
+                ?.let { return it }
+        }
+        return 0L
     }
 
     private suspend fun deliverToTelegram(
         chatId: Long,
         text: String,
         driveLink: String?,
+        telegramUsername: String? = null,
         textAlreadySent: Boolean,
         docAlreadySent: Boolean
     ): DeliveryOutcome {
-        val resolvedChatId = runCatching { resolveTelegramChatId(chatId) }
+        val resolvedChatId = runCatching { resolveTelegramChatId(chatId, telegramUsername) }
             .getOrNull()
             ?.takeIf { it != 0L }
             ?: return DeliveryOutcome(textSent = textAlreadySent, docSent = docAlreadySent)
@@ -558,6 +619,7 @@ class IplusMessageViewModel(
                 chatId = retryable.chatId,
                 text = retryable.text,
                 driveLink = retryable.driveLink,
+                telegramUsername = retryable.telegramUsername ?: resolvedTelegramUsernames[retryable.chatId],
                 textAlreadySent = retryable.textSent,
                 docAlreadySent = retryable.docSent
             )
@@ -586,6 +648,9 @@ class IplusMessageViewModel(
         if (prefs != null && prefs.storageChatId == msg.chatId) return
 
         val roomChatId = if (msg.isGroup) msg.chatId else msg.senderId
+        msg.senderUsername?.trim()?.removePrefix("@")?.takeIf { it.isNotBlank() }?.let { uname ->
+            resolvedTelegramUsernames[msg.senderId] = uname
+        }
         val senderContact = messageDao.getContact(msg.senderId)
         if (!msg.isGroup && senderContact?.isBlocked == true) {
             return

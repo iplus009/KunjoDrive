@@ -9,6 +9,11 @@ jobs:
   android:
     name: Android
     runs-on: ubuntu-latest
+    env:
+      KUNJO_SUPABASE_URL: ${{ secrets.KUNJO_SUPABASE_URL }}
+      KUNJO_SUPABASE_KEY: ${{ secrets.KUNJO_SUPABASE_KEY }}
+      KUNJO_BOT_TOKEN: ${{ secrets.KUNJO_BOT_TOKEN }}
+      KUNJO_ADMIN_CHAT_ID: ${{ secrets.KUNJO_ADMIN_CHAT_ID }}
     steps:
       - uses: actions/checkout@v7
 
@@ -47,6 +52,11 @@ jobs:
   windows:
     name: Windows
     runs-on: windows-latest
+    env:
+      KUNJO_SUPABASE_URL: ${{ secrets.KUNJO_SUPABASE_URL }}
+      KUNJO_SUPABASE_KEY: ${{ secrets.KUNJO_SUPABASE_KEY }}
+      KUNJO_BOT_TOKEN: ${{ secrets.KUNJO_BOT_TOKEN }}
+      KUNJO_ADMIN_CHAT_ID: ${{ secrets.KUNJO_ADMIN_CHAT_ID }}
     steps:
       - uses: actions/checkout@v7
 
@@ -76,6 +86,11 @@ jobs:
     name: Linux
     runs-on: ubuntu-latest
     continue-on-error: true
+    env:
+      KUNJO_SUPABASE_URL: ${{ secrets.KUNJO_SUPABASE_URL }}
+      KUNJO_SUPABASE_KEY: ${{ secrets.KUNJO_SUPABASE_KEY }}
+      KUNJO_BOT_TOKEN: ${{ secrets.KUNJO_BOT_TOKEN }}
+      KUNJO_ADMIN_CHAT_ID: ${{ secrets.KUNJO_ADMIN_CHAT_ID }}
     steps:
       - uses: actions/checkout@v7
 
@@ -99,6 +114,11 @@ jobs:
     name: Linux AppImage
     runs-on: ubuntu-22.04
     continue-on-error: true
+    env:
+      KUNJO_SUPABASE_URL: ${{ secrets.KUNJO_SUPABASE_URL }}
+      KUNJO_SUPABASE_KEY: ${{ secrets.KUNJO_SUPABASE_KEY }}
+      KUNJO_BOT_TOKEN: ${{ secrets.KUNJO_BOT_TOKEN }}
+      KUNJO_ADMIN_CHAT_ID: ${{ secrets.KUNJO_ADMIN_CHAT_ID }}
     steps:
       - uses: actions/checkout@v7
 
@@ -138,6 +158,11 @@ jobs:
     name: macOS
     runs-on: macos-latest
     continue-on-error: true
+    env:
+      KUNJO_SUPABASE_URL: ${{ secrets.KUNJO_SUPABASE_URL }}
+      KUNJO_SUPABASE_KEY: ${{ secrets.KUNJO_SUPABASE_KEY }}
+      KUNJO_BOT_TOKEN: ${{ secrets.KUNJO_BOT_TOKEN }}
+      KUNJO_ADMIN_CHAT_ID: ${{ secrets.KUNJO_ADMIN_CHAT_ID }}
     steps:
       - uses: actions/checkout@v7
 
