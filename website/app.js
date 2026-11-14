@@ -1,8 +1,8 @@
 (() => {
-  const REPO = "Mahmud0808/TeleDrive";
+  const REPO = "iplus009/KunjoDrive";
   const API = `https://api.github.com/repos/${REPO}`;
   const RELEASES_PAGE = `https://github.com/${REPO}/releases`;
-  const CACHE_KEY = "teledrive:releases:v1";
+  const CACHE_KEY = "kunjodrive:releases:v2";
   const CACHE_TTL = 10 * 60 * 1000;
 
   const root = document.documentElement;
@@ -14,7 +14,7 @@
   const duration = (ms) => (reducedMotion.matches ? Math.min(ms, 150) : ms);
 
   const PLATFORMS = {
-    android: { label: "Android", pick: /-arm64-v8a-release\.apk$/i, family: /\.apk$/i },
+    android: { label: "Android", pick: /-(arm64-v8a|universal)-release\.apk$/i, fallback: /\.apk$/i, family: /\.apk$/i },
     windows: { label: "Windows", pick: /\.msi$/i, family: /\.msi$/i },
     linux: { label: "Linux", pick: /-x86_64\.AppImage$/i, fallback: /_amd64\.deb$/i, family: /\.(AppImage|deb)$/i },
     macos: { label: "macOS", pick: /\.dmg$/i, family: /\.dmg$/i },
@@ -24,7 +24,7 @@
     { abi: "armeabi-v7a", match: /-armeabi-v7a-release\.apk$/i, hint: "Older 32-bit devices" },
     { abi: "x86_64", match: /-x86_64-release\.apk$/i, hint: "64-bit emulators and x86 Chromebooks" },
     { abi: "x86", match: /-x86-release\.apk$/i, hint: "32-bit x86, rare outside older emulators" },
-    { abi: "universal", match: /-universal-release\.apk$/i, hint: "Every architecture in one larger file" },
+    { abi: "universal", match: /-universal-(release|debug)\.apk$/i, hint: "Every architecture in one larger file" },
   ];
 
   const numberFormat = new Intl.NumberFormat();

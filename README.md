@@ -2,8 +2,22 @@
   <img src="assets/logo.png" width="140" alt="Kunjo Drive Logo" />
 </p>
 
-<h1 align="center">Kunjo Drive — v3.1.1</h1>
+<h1 align="center">Kunjo Drive — v1.2.0</h1>
 <p align="center"><b>Next-Generation Zero-Knowledge Liquid Glass Cloud Drive for Android & Desktop</b></p>
+
+<p align="center">
+  <a href="https://github.com/iplus009/KunjoDrive/releases/latest/download/DewanGram-KunjoDrive-v1.2.0-universal-release.apk">
+    <img src="https://img.shields.io/badge/Download_APK-Android_v1.2.0-2ea44f?style=for-the-badge&logo=android&logoColor=white" alt="Download Android APK" />
+  </a>
+  <a href="https://github.com/iplus009/KunjoDrive/releases/latest">
+    <img src="https://img.shields.io/badge/All_Releases-Android_%7C_Win_%7C_Linux_%7C_macOS-0969da?style=for-the-badge&logo=github&logoColor=white" alt="All Releases" />
+  </a>
+</p>
+
+## Download
+
+- **Android (Universal APK):** [DewanGram-KunjoDrive-v1.2.0-universal-release.apk](https://github.com/iplus009/KunjoDrive/releases/latest/download/DewanGram-KunjoDrive-v1.2.0-universal-release.apk)
+- **Desktop (Windows `.msi`, Linux `.deb` / `.AppImage`, macOS `.dmg`) & All Versions:** [GitHub Releases](https://github.com/iplus009/KunjoDrive/releases/latest)
 
 ---
 
